@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sales Intelligence Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;font-size:14px;display:flex;flex-direction:column}
+:root{
+  --bg:#f1f5f9;--surf:#fff;--surf2:#f8fafc;--border:#e2e8f0;--border2:#cbd5e1;
+  --text:#1e293b;--text2:#475569;--text3:#94a3b8;
+  --accent:#2563eb;--accent-lt:#eff6ff;--accent2:#7c3aed;
+  --green:#059669;--red:#dc2626;--orange:#d97706;--purple:#7c3aed;--teal:#0d9488;
+  --hh:60px;--sh:48px;--fh:38px;--r:12px;--r2:8px;
+  --shadow:0 1px 3px rgba(0,0,0,.07);--shadowm:0 4px 12px rgba(0,0,0,.09);--shadowl:0 10px 32px rgba(0,0,0,.12);
+}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+
+/* ====== UPLOAD SCREEN ====== */
+#upscreen{
+  position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;
+  background:linear-gradient(135deg,#dbeafe,#f0f9ff 50%,#faf5ff);
+  transition:opacity .45s,transform .45s;
+}
+#upscreen.gone{opacity:0;pointer-events:none;transform:scale(1.02)}
+.up-hdr{
+  height:var(--hh);background:#fff;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;
+}
+.brand{display:flex;align-items:center;gap:10px}
+.bicon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.bname{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.btag{font-size:11px;color:var(--text3)}
+.up-body{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+.ucard{background:#fff;border-radius:20px;padding:36px 40px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(37,99,235,.12);border:1px solid rgba(37,99,235,.08)}
+@media(max-width:480px){.ucard{padding:24px 20px}}
+.ucard h1{font-size:22px;font-weight:700;margin-bottom:6px}
+.ucard .sub{color:var(--text3);font-size:13px;line-height:1.6;margin-bottom:24px}
+.dropzone{
+  border:2px dashed #cbd5e1;border-radius:14px;padding:28px 20px;
+  cursor:pointer;background:var(--surf2);text-align:center;transition:all .2s;margin-bottom:12px;
+}
+.dropzone:hover,.dropzone.on{border-color:var(--accent);background:#eff6ff}
+.dropzone .di{font-size:34px;margin-bottom:8px}
+.dropzone h3{font-size:14px;font-weight:600;color:var(--text2);margin-bottom:3px}
+.dropzone p{font-size:12px;color:var(--text3)}
+#finput{display:none}
+.btnp{width:100%;padding:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .1s}
+.btnp:hover{opacity:.9;transform:translateY(-1px)}
+.slink{margin-top:12px;text-align:center;font-size:12px;color:var(--text3)}
+.slink a{color:var(--accent);cursor:pointer;font-weight:500;text-decoration:none}
+.slink a:hover{text-decoration:underline}
+.chint{margin-top:16px;padding:11px 13px;background:var(--surf2);border-radius:10px;border:1px solid var(--border);font-size:11px;color:var(--text3)}
+.chint strong{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
+.up-ftr{height:var(--fh);background:#fff;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text3);flex-shrink:0}
+
+/* ====== APP SHELL ====== */
+#app{display:none;flex-direction:column;height:100vh;overflow:hidden}
+#app.on{display:flex}
+
+/* ====== HEADER ====== */
+header{
+  height:var(--hh);background:#fff;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;padding:0 14px 0 16px;
+  z-index:200;flex-shrink:0;box-shadow:0 1px 0 rgba(0,0,0,.04);
+}
+.hl{display:flex;align-items:center;gap:8px;min-width:0;flex-shrink:0}
+.hc{display:flex;align-items:center;gap:5px;flex:1;justify-content:center;min-width:0;flex-wrap:wrap}
+.hr{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.fpill{
+  display:inline-flex;align-items:center;gap:5px;background:var(--accent-lt);
+  border:1px solid #bfdbfe;padding:3px 9px;border-radius:20px;
+  font-size:11px;color:var(--accent);font-weight:500;
+  max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+select.fs{
+  background:var(--surf2);border:1px solid var(--border);border-radius:7px;
+  padding:5px 8px;font-size:12px;font-family:inherit;color:var(--text);
+  cursor:pointer;outline:none;transition:border-color .2s;max-width:130px;
+}
+select.fs:focus{border-color:var(--accent)}
+.hbtn{
+  padding:5px 10px;border-radius:7px;font-size:12px;cursor:pointer;
+  font-family:inherit;border:1px solid var(--border);background:var(--surf2);
+  color:var(--text2);transition:all .15s;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:4px;
+}
+.hbtn:hover{background:var(--border);color:var(--text)}
+.hbtn.ac{background:var(--accent);color:#fff;border-color:var(--accent)}
+.hbtn.ac:hover{opacity:.85}
+.hamburger{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:7px;border-radius:7px;border:1px solid var(--border);background:var(--surf2)}
+.hamburger span{display:block;width:17px;height:2px;background:var(--text2);border-radius:1px;transition:all .2s}
+.hamburger.op span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.hamburger.op span:nth-child(2){opacity:0}
+.hamburger.op span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+@media(max-width:860px){.hc{display:none}.hamburger{display:flex}.hbtn.hd{display:none}}
+@media(max-width:400px){.hl .fpill,.bname{display:none}}
+
+/* ====== MOBILE DRAWER ====== */
+.drawer-bg{
+  position:fixed;top:var(--hh);left:0;right:0;bottom:0;
+  background:rgba(0,0,0,.4);z-index:180;display:none;opacity:0;transition:opacity .25s;
+}
+.drawer-bg.op{display:block;opacity:1}
+.drawer{
+  position:absolute;top:0;left:0;bottom:0;width:270px;
+  background:#fff;padding:14px;box-shadow:var(--shadowl);
+  transform:translateX(-100%);transition:transform .25s;overflow-y:auto;
+}
+.drawer-bg.op .drawer{transform:translateX(0)}
+.dsec{margin-bottom:16px}
+.dsec h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px}
+.dsec select,.dsec .hbtn{width:100%;margin-bottom:7px;justify-content:center}
+
+/* ====== SUBHEADER ====== */
+.subhdr{
+  height:var(--sh);background:#fff;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 12px;gap:3px;
+  z-index:150;flex-shrink:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+}
+.subhdr::-webkit-scrollbar{display:none}
+.tbtn{
+  padding:6px 13px;border:none;background:transparent;border-radius:7px;
+  font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;
+  color:var(--text2);transition:all .15s;white-space:nowrap;flex-shrink:0;
+}
+.tbtn.ac{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.25)}
+.tbtn:not(.ac):hover{background:var(--surf2);color:var(--text)}
+
+/* ====== CONTENT AREA ====== */
+.mbody{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0}
+.content{padding:14px;max-width:1600px;margin:0 auto}
+@media(min-width:640px){.content{padding:18px}}
+@media(min-width:1024px){.content{padding:22px}}
+
+/* ====== FOOTER ====== */
+footer{
+  height:var(--fh);background:#fff;border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;font-size:11px;color:var(--text3);flex-shrink:0;z-index:100;gap:8px;
+  overflow:hidden;
+}
+.fstats{display:flex;gap:14px;align-items:center;flex-wrap:wrap;min-width:0}
+.fstat{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.fstat span{font-weight:600;color:var(--text2)}
+.fright{white-space:nowrap;flex-shrink:0;display:none}
+@media(min-width:600px){.fright{display:block}}
+
+/* ====== INFO BAR ====== */
+.ibar{
+  display:flex;align-items:center;gap:8px;padding:7px 12px;
+  background:var(--accent-lt);border-radius:9px;border:1px solid #bfdbfe;
+  margin-bottom:14px;font-size:11px;color:#1e40af;flex-wrap:wrap;
+}
+.ibar strong{font-weight:600}
+.isep{color:#93c5fd}
+
+/* ====== KPI ====== */
+.kgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:14px}
+@media(min-width:480px){.kgrid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:1000px){.kgrid{grid-template-columns:repeat(6,1fr);gap:12px}}
+.kcard{
+  background:#fff;border-radius:var(--r);padding:13px 14px;
+  border:1px solid var(--border);box-shadow:var(--shadow);position:relative;overflow:hidden;
+  transition:transform .2s,box-shadow .2s;
+}
+.kcard:hover{transform:translateY(-2px);box-shadow:var(--shadowm)}
+.kcard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
+.kcard.blue::before{background:var(--accent)}.kcard.green::before{background:var(--green)}
+.kcard.red::before{background:var(--red)}.kcard.orange::before{background:var(--orange)}
+.kcard.purple::before{background:var(--purple)}.kcard.teal::before{background:var(--teal)}
+.klbl{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.kval{font-size:19px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text);line-height:1.1}
+@media(min-width:1000px){.kval{font-size:21px}}
+.ksub{font-size:11px;color:var(--text3);margin-top:4px}
+.kicon{position:absolute;right:10px;top:10px;font-size:20px;opacity:.1}
+
+/* ====== CHARTS GRID ====== */
+.cgrid{display:grid;grid-template-columns:1fr;gap:11px;margin-bottom:14px}
+@media(min-width:700px){.cgrid{grid-template-columns:1fr 1fr;gap:13px}}
+@media(min-width:1100px){.cgrid{gap:14px}}
+.cwide{grid-column:1/-1}
+.ccard{background:#fff;border-radius:var(--r);padding:14px 16px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.ccard h3{font-size:13px;font-weight:600;margin-bottom:2px}
+.csub{font-size:11px;color:var(--text3);margin-bottom:10px}
+.cwrap{position:relative;height:190px}
+.cwrap.tall{height:250px}
+@media(min-width:700px){.cwrap{height:210px}.cwrap.tall{height:270px}}
+@media(min-width:1100px){.cwrap{height:225px}.cwrap.tall{height:285px}}
+
+/* ====== TABLES ====== */
+.tcrd{background:#fff;border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
+.thdr{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.thdr h3{font-size:13px;font-weight:600}
+.sbox{padding:5px 9px;border:1px solid var(--border);border-radius:7px;font-size:12px;font-family:inherit;background:var(--surf2);outline:none;transition:border-color .2s;width:100%;max-width:195px}
+.sbox:focus{border-color:var(--accent)}
+.tscrl{overflow-x:auto;overflow-y:auto;max-height:340px}
+@media(min-width:700px){.tscrl{max-height:380px}}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:540px}
+thead th{
+  position:sticky;top:0;background:#f8fafc;padding:7px 11px;text-align:left;
+  font-weight:600;color:var(--text3);font-size:10px;text-transform:uppercase;
+  letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap;
+  cursor:pointer;user-select:none;
+}
+thead th:hover{background:#edf2f7;color:var(--text)}
+tbody tr{border-bottom:1px solid #f1f5f9;transition:background .1s}
+tbody tr:last-child{border:none}
+tbody tr:hover{background:#f8fafc}
+tbody td{padding:8px 11px;white-space:nowrap;color:var(--text2)}
+tbody td:first-child{color:var(--text);font-weight:500}
+.mn{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500}
+.pos{color:var(--green)}.neg{color:var(--red)}.neu{color:var(--text3)}
+.bdg{display:inline-block;padding:2px 6px;border-radius:20px;font-size:10px;font-weight:600}
+.bdg-p{background:#d1fae5;color:#065f46}.bdg-l{background:#fee2e2;color:#991b1b}.bdg-n{background:#f3f4f6;color:#6b7280}
+
+/* ====== ITEM GRID ====== */
+.igrid{display:grid;grid-template-columns:1fr;gap:11px;margin-bottom:14px}
+@media(min-width:600px){.igrid{grid-template-columns:1fr 1fr}}
+@media(min-width:900px){.igrid{grid-template-columns:1fr 1fr 1fr}}
+.icard{background:#fff;border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden}
+.ichdr{padding:10px 13px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:5px;flex-wrap:wrap}
+.ilist{padding:3px 0;max-height:250px;overflow-y:auto}
+.irow{padding:8px 13px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f8fafc;transition:background .1s;gap:6px}
+.irow:last-child{border:none}
+.irow:hover{background:var(--surf2)}
+.iname{font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px}
+.idetail{font-size:10px;color:var(--text3);margin-top:1px}
+.ival{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;text-align:right;flex-shrink:0}
+
+/* ====== PROFIT ====== */
+.psum{display:grid;grid-template-columns:1fr;gap:11px;margin-bottom:14px}
+@media(min-width:500px){.psum{grid-template-columns:repeat(3,1fr)}}
+.pblk{background:#fff;border-radius:var(--r);padding:16px 14px;border:1px solid var(--border);text-align:center}
+.pico{font-size:30px;margin-bottom:7px}
+.plbl{font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.pval{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.pcnt{font-size:11px;color:var(--text3);margin-top:3px}
+
+/* ====== MISC ====== */
+.loading{display:flex;align-items:center;justify-content:center;height:140px;color:var(--text3);font-size:13px;gap:8px}
+.spin{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.nodata{text-align:center;padding:36px;color:var(--text3);font-size:13px}
+.nodata .ndi{font-size:38px;margin-bottom:8px}
+.tpanel{display:none}.tpanel.ac{display:block}
+@media print{
+  header,footer,.subhdr,.hamburger,.drawer-bg{display:none!important}
+  .mbody{overflow:visible;height:auto;max-height:none}
+  #app{height:auto;display:block}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ UPLOAD ============ -->
+<div id="upscreen">
+  <div class="up-hdr">
+    <div class="brand">
+      <div class="bicon">📊</div>
+      <div><div class="bname">Sales Intelligence</div><div class="btag">Stock & Sale Analytics</div></div>
+    </div>
+    <div style="font-size:11px;color:var(--text3)">v2.0</div>
+  </div>
+  <div class="up-body">
+    <div class="ucard">
+      <h1>📤 Excel Upload Karein</h1>
+      <p class="sub">Apna sales voucher Excel file upload karein — instant dashboard, charts, aur profit analysis milega har screen par perfect.</p>
+      <div class="dropzone" id="dzone" onclick="document.getElementById('finput').click()">
+        <div class="di">📂</div>
+        <h3>File Drag &amp; Drop Karein</h3>
+        <p>.xlsx · .xls · .csv supported</p>
+      </div>
+      <input type="file" id="finput" accept=".xlsx,.xls,.csv">
+      <button class="btnp" onclick="document.getElementById('finput').click()">📤 File Choose Karein</button>
+      <p class="slink">Excel nahi hai? <a onclick="loadSample()">Sample Data se try karein →</a></p>
+      <div class="chint">
+        <strong>📋 Supported Columns:</strong>
+        Voucher Number, Date, Voucher Type, Party Name, Party Group, Item Name, Item HSN, Item Rate of GST, Billed Quantity, Sale Rate, Purchase Rate, Unit, Discount Amount, Item Amount, Tax, Gross Amount
+      </div>
+    </div>
+  </div>
+  <div class="up-ftr">© 2025 Sales Intelligence &nbsp;·&nbsp; Data sirf aapke browser mein rehta hai — koi server nahi</div>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="hl">
+      <div class="bicon" style="width:32px;height:32px;font-size:16px">📊</div>
+      <div>
+        <div class="bname" style="font-size:13px;font-weight:700">Sales Intelligence</div>
+        <div class="fpill" id="fpill">📄 —</div>
+      </div>
+    </div>
+    <div class="hc" id="hc-filters">
+      <select class="fs" id="fp" onchange="applyF()">
+        <option value="all">📅 All Time</option>
+        <option value="today">Today</option>
+        <option value="week">This Week</option>
+        <option value="month">This Month</option>
+        <option value="quarter">This Quarter</option>
+        <option value="year">This Year</option>
+      </select>
+      <select class="fs" id="fpar" onchange="applyF()"><option value="all">👥 All Parties</option></select>
+      <select class="fs" id="fitm" onchange="applyF()"><option value="all">📦 All Items</option></select>
+      <select class="fs" id="ftyp" onchange="applyF()"><option value="all">🏷 All Types</option></select>
+      <button class="hbtn" onclick="resetF()" title="Reset">↺</button>
+    </div>
+    <div class="hr">
+      <button class="hbtn hd" onclick="exportD()">⬇ Export</button>
+      <button class="hbtn hd" onclick="newFile()">📂 New</button>
+      <button class="hbtn" onclick="toggleFS()" id="fsbtn" title="Fullscreen">⛶</button>
+      <div class="hamburger" id="hmenu" onclick="toggleDrawer()"><span></span><span></span><span></span></div>
+    </div>
+  </header>
+
+  <!-- MOBILE DRAWER -->
+  <div class="drawer-bg" id="drawer" onclick="bgClose(event)">
+    <div class="drawer">
+      <div class="dsec">
+        <h4>🔽 Filters</h4>
+        <select class="fs" id="mfp" onchange="syncF('p',this.value)" style="width:100%"><option value="all">📅 All Time</option><option value="today">Today</option><option value="week">This Week</option><option value="month">This Month</option><option value="quarter">This Quarter</option><option value="year">This Year</option></select>
+        <select class="fs" id="mfpar" onchange="syncF('par',this.value)" style="width:100%"><option value="all">👥 All Parties</option></select>
+        <select class="fs" id="mfitm" onchange="syncF('itm',this.value)" style="width:100%"><option value="all">📦 All Items</option></select>
+        <select class="fs" id="mftyp" onchange="syncF('typ',this.value)" style="width:100%"><option value="all">🏷 All Types</option></select>
+        <button class="hbtn" onclick="resetF();closeDrawer()" style="width:100%;justify-content:center;margin-top:4px">↺ Reset Filters</button>
+      </div>
+      <div class="dsec">
+        <h4>⚡ Actions</h4>
+        <button class="hbtn" onclick="exportD();closeDrawer()" style="width:100%;justify-content:center;margin-bottom:7px">⬇ Export Excel</button>
+        <button class="hbtn" onclick="newFile()" style="width:100%;justify-content:center;margin-bottom:7px">📂 New File</button>
+        <button class="hbtn" onclick="toggleFS();closeDrawer()" style="width:100%;justify-content:center">⛶ Fullscreen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUBHEADER TABS -->
+  <div class="subhdr">
+    <button class="tbtn ac" onclick="switchTab('ov')">🏠 Overview</button>
+    <button class="tbtn" onclick="switchTab('dy')">📅 Daily</button>
+    <button class="tbtn" onclick="switchTab('it')">📦 Items</button>
+    <button class="tbtn" onclick="switchTab('pa')">👥 Parties</button>
+    <button class="tbtn" onclick="switchTab('pr')">💰 Profit</button>
+    <button class="tbtn" onclick="switchTab('rw')">🗃 Raw Data</button>
+  </div>
+
+  <!-- SCROLLABLE CONTENT -->
+  <div class="mbody">
+    <div class="content">
+
+      <!-- INFO BAR -->
+      <div class="ibar">
+        <span>📄</span><strong id="ib-f">—</strong>
+        <span class="isep">|</span><span id="ib-r">— rows</span>
+        <span class="isep">|</span><span id="ib-d">—</span>
+        <span class="isep">|</span><span id="ib-s">Showing all</span>
+      </div>
+
+      <!-- OVERVIEW -->
+      <div class="tpanel ac" id="t-ov">
+        <div class="kgrid" id="kgrid"><div class="loading"><div class="spin"></div> Loading…</div></div>
+        <div class="cgrid">
+          <div class="ccard cwide">
+            <h3>📈 Sales &amp; Profit Trend</h3><div class="csub">Date wise sale aur profit</div>
+            <div class="cwrap tall"><canvas id="c-trend"></canvas></div>
+          </div>
+          <div class="ccard">
+            <h3>🥧 Top Items by Sale</h3><div class="csub">Sabse zyada bikne wale</div>
+            <div class="cwrap"><canvas id="c-ti"></canvas></div>
+          </div>
+          <div class="ccard">
+            <h3>👥 Top Parties</h3><div class="csub">Highest buyers</div>
+            <div class="cwrap"><canvas id="c-tp"></canvas></div>
+          </div>
+          <div class="ccard">
+            <h3>🏛 GST Distribution</h3><div class="csub">GST slab wise breakup</div>
+            <div class="cwrap"><canvas id="c-gst"></canvas></div>
+          </div>
+          <div class="ccard">
+            <h3>🏷 Discount Analysis</h3><div class="csub">Item wise discount diya gaya</div>
+            <div class="cwrap"><canvas id="c-disc"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DAILY -->
+      <div class="tpanel" id="t-dy">
+        <div class="cgrid">
+          <div class="ccard cwide">
+            <h3>📅 Daily Sale &amp; Profit</h3><div class="csub">Har din ka amount</div>
+            <div class="cwrap tall"><canvas id="c-db"></canvas></div>
+          </div>
+          <div class="ccard">
+            <h3>📆 Weekly Summary</h3><div class="csub">Week wise total</div>
+            <div class="cwrap"><canvas id="c-wk"></canvas></div>
+          </div>
+          <div class="ccard">
+            <h3>🗓 Monthly Summary</h3><div class="csub">Month wise total</div>
+            <div class="cwrap"><canvas id="c-mn"></canvas></div>
+          </div>
+        </div>
+        <div class="tcrd">
+          <div class="thdr"><h3>📅 Daily Breakdown Table</h3></div>
+          <div class="tscrl"><table>
+            <thead><tr><th>Date</th><th>Vouchers</th><th>Items</th><th>Qty</th><th>Sale</th><th>Tax</th><th>Discount</th><th>Gross</th><th>Profit</th><th>Margin%</th></tr></thead>
+            <tbody id="dy-tb"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ITEMS -->
+      <div class="tpanel" id="t-it">
+        <div class="igrid">
+          <div class="icard"><div class="ichdr">🏆 Top by Sale <span class="bdg bdg-p">₹</span></div><div class="ilist" id="il-sale"></div></div>
+          <div class="icard"><div class="ichdr">📦 Top by Qty <span class="bdg bdg-n">Units</span></div><div class="ilist" id="il-qty"></div></div>
+          <div class="icard"><div class="ichdr">💰 Best Margin <span class="bdg bdg-p">%</span></div><div class="ilist" id="il-mar"></div></div>
+        </div>
+        <div class="cgrid">
+          <div class="ccard cwide">
+            <h3>📊 Sale vs Purchase vs Profit (Top 15)</h3><div class="csub">Item wise comparison</div>
+            <div class="cwrap tall"><canvas id="c-icmp"></canvas></div>
+          </div>
+        </div>
+        <div class="tcrd">
+          <div class="thdr"><h3>📦 Item Master Report</h3><input class="sbox" placeholder="🔍 Search item…" id="is" oninput="filtItm()"></div>
+          <div class="tscrl"><table>
+            <thead><tr>
+              <th onclick="sortI('name')">Item ⇅</th><th>HSN</th><th>GST%</th>
+              <th onclick="sortI('qty')">Qty ⇅</th><th onclick="sortI('saleRate')">Avg Sale ⇅</th>
+              <th onclick="sortI('purRate')">Avg Pur ⇅</th><th onclick="sortI('sale')">Sale ⇅</th>
+              <th onclick="sortI('purchase')">Purchase ⇅</th><th onclick="sortI('profit')">Profit ⇅</th>
+              <th onclick="sortI('margin')">Margin% ⇅</th><th>Status</th>
+            </tr></thead>
+            <tbody id="it-tb"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- PARTIES -->
+      <div class="tpanel" id="t-pa">
+        <div class="cgrid">
+          <div class="ccard">
+            <h3>👥 Top 10 Parties</h3><div class="csub">By sale amount</div>
+            <div class="cwrap tall"><canvas id="c-ps"></canvas></div>
+          </div>
+          <div class="ccard">
+            <h3>📊 Party Group Split</h3><div class="csub">Group wise distribution</div>
+            <div class="cwrap tall"><canvas id="c-pg"></canvas></div>
+          </div>
+        </div>
+        <div class="tcrd">
+          <div class="thdr"><h3>👥 Party Wise Report</h3><input class="sbox" placeholder="🔍 Search party…" id="ps" oninput="filtPar()"></div>
+          <div class="tscrl"><table>
+            <thead><tr><th>Party</th><th>Group</th><th>Vouchers</th><th>Items</th><th>Qty</th><th>Sale</th><th>Avg Bill</th><th>Discount</th><th>Tax</th></tr></thead>
+            <tbody id="pa-tb"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- PROFIT -->
+      <div class="tpanel" id="t-pr">
+        <div class="psum" id="psum"></div>
+        <div class="cgrid">
+          <div class="ccard cwide">
+            <h3>💰 Item Profit / Loss</h3><div class="csub">Green = profit · Red = loss</div>
+            <div class="cwrap tall"><canvas id="c-pit"></canvas></div>
+          </div>
+          <div class="ccard">
+            <h3>📈 Margin% Distribution</h3><div class="csub">Items in each range</div>
+            <div class="cwrap"><canvas id="c-mrd"></canvas></div>
+          </div>
+          <div class="ccard">
+            <h3>🗓 Profit Trend</h3><div class="csub">Daily profit over time</div>
+            <div class="cwrap"><canvas id="c-prt"></canvas></div>
+          </div>
+        </div>
+        <div class="tcrd">
+          <div class="thdr"><h3>💹 Profit &amp; Loss Breakdown</h3></div>
+          <div class="tscrl"><table>
+            <thead><tr><th>Item</th><th>Qty</th><th>Sale</th><th>Purchase</th><th>Gross Profit</th><th>Discount</th><th>Tax</th><th>Net Profit</th><th>Margin%</th><th>Status</th></tr></thead>
+            <tbody id="pr-tb"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- RAW DATA -->
+      <div class="tpanel" id="t-rw">
+        <div class="tcrd">
+          <div class="thdr"><h3>🗃 Raw Voucher Data</h3><input class="sbox" placeholder="🔍 Search anything…" id="rs" oninput="filtRaw()"></div>
+          <div class="tscrl" id="raw-c"><div class="loading"><div class="spin"></div> Loading…</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="fstats">
+      <div class="fstat">📄 <span id="ft-r">—</span> rows</div>
+      <div class="fstat">📦 <span id="ft-i">—</span> items</div>
+      <div class="fstat">👥 <span id="ft-p">—</span> parties</div>
+      <div class="fstat">💰 Net: <span id="ft-pr">—</span></div>
+    </div>
+    <div class="fright">Sales Intelligence v2.0 · Data stays in your browser</div>
+  </footer>
+
+</div>
+
+<script>
+/* ===================== STATE ===================== */
+let RAW=[], FD=[], CH={}, ISK='sale', ISD=-1, IAD=[], PAD=[];
+
+/* ===================== FILE ===================== */
+document.getElementById('finput').addEventListener('change',e=>{ if(e.target.files[0]) procFile(e.target.files[0]); });
+const DZ=document.getElementById('dzone');
+DZ.addEventListener('dragover',e=>{e.preventDefault();DZ.classList.add('on')});
+DZ.addEventListener('dragleave',()=>DZ.classList.remove('on'));
+DZ.addEventListener('drop',e=>{e.preventDefault();DZ.classList.remove('on');if(e.dataTransfer.files[0])procFile(e.dataTransfer.files[0])});
+
+function procFile(file){
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const json=XLSX.utils.sheet_to_json(ws,{defval:''});
+      RAW=norm(json); FD=[...RAW];
+      setFI(file.name,RAW.length); popFilters(); showApp(); buildAll();
+    }catch(e){alert('File error: '+e.message);}
+  };
+  r.readAsBinaryString(file);
+}
+
+function norm(json){
+  if(!json.length) return [];
+  const M={
+    'voucher number':'vno','vouchernumber':'vno',
+    'date':'date',
+    'voucher type':'vtype','vouchertype':'vtype',
+    'party name':'par','partyname':'par',
+    'party group':'pgrp','partygroup':'pgrp',
+    'item name':'itm','itemname':'itm',
+    'item hsn':'hsn','itemhsn':'hsn','hsn':'hsn',
+    'item rate of gst':'gst','gst rate':'gst','gstrate':'gst','gst%':'gst',
+    'billed quantity':'qty','billedquantity':'qty','quantity':'qty','qty':'qty',
+    'sale rate':'sr','salerate':'sr',
+    'purchase rate':'pr','purchaserate':'pr',
+    'unit':'unit',
+    'discount':'dsc',
+    'discount amount':'damt','discountamount':'damt',
+    'margin':'margc',
+    'item amount':'iamt','itemamount':'iamt','amount':'iamt',
+    'tax':'tax',
+    'gross amount':'gamt','grossamount':'gamt','grass amount':'gamt',
+  };
+  const CM={};
+  Object.keys(json[0]).forEach(h=>{
+    const cl=h.toLowerCase().trim().replace(/\s+/g,' ');
+    if(M[cl]) CM[h]=M[cl];
+    else for(const[k,v] of Object.entries(M)) if(cl.includes(k)||k.includes(cl)){CM[h]=v;break;}
+  });
+  return json.map((row,idx)=>{
+    const r={_i:idx,_orig:row};
+    Object.keys(json[0]).forEach(h=>r['_c'+h]=row[h]);
+    for(const[oh,nk] of Object.entries(CM)) r[nk]=row[oh];
+    if(r.date){
+      if(r.date instanceof Date) r._d=r.date;
+      else{
+        let d=new Date(r.date);
+        if(isNaN(d)){const p=String(r.date).split(/[\/-]/);if(p.length===3)d=new Date(+p[2],+p[1]-1,+p[0]);}
+        if(!isNaN(d))r._d=d;
+      }
+    }
+    ['qty','sr','pr','dsc','damt','iamt','tax','gamt','gst'].forEach(f=>{r[f]=parseFloat(r[f])||0});
+    if(!r.iamt&&r.qty&&r.sr) r.iamt=r.qty*r.sr;
+    if(!r.gamt) r.gamt=r.iamt+r.tax;
+    r._pa=r.qty*r.pr;
+    r._pf=(r.sr-r.pr)*r.qty-r.damt;
+    r._mg=r.iamt>0?r._pf/r.iamt*100:0;
+    return r;
+  });
+}
+
+/* ===================== SHOW APP ===================== */
+function showApp(){
+  const us=document.getElementById('upscreen');
+  us.classList.add('gone');
+  setTimeout(()=>us.style.display='none',500);
+  document.getElementById('app').classList.add('on');
+}
+function setFI(name,rows){
+  document.getElementById('fpill').textContent='📄'+(name.length>22?name.slice(0,20)+'…':name);
+  document.getElementById('ib-f').textContent=name;
+  document.getElementById('ib-r').textContent=rows+' rows';
+  document.getElementById('ft-r').textContent=rows;
+}
+function newFile(){
+  const us=document.getElementById('upscreen');
+  us.style.display='flex';us.classList.remove('gone');
+  document.getElementById('app').classList.remove('on');
+  document.getElementById('finput').value='';
+  RAW=[];FD=[];
+}
+
+/* ===================== FILTERS ===================== */
+function popFilters(){
+  const pars=[...new Set(RAW.map(r=>r.par).filter(Boolean))].sort();
+  const itms=[...new Set(RAW.map(r=>r.itm).filter(Boolean))].sort();
+  const typs=[...new Set(RAW.map(r=>r.vtype).filter(Boolean))].sort();
+  ['fpar','mfpar'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML='<option value="all">👥 All Parties</option>'+pars.map(p=>`<option value="${p}">${p}</option>`).join(''); });
+  ['fitm','mfitm'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML='<option value="all">📦 All Items</option>'+itms.map(i=>`<option value="${i}">${i}</option>`).join(''); });
+  ['ftyp','mftyp'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML='<option value="all">🏷 All Types</option>'+typs.map(t=>`<option value="${t}">${t}</option>`).join(''); });
+  const dates=RAW.filter(r=>r._d).map(r=>r._d);
+  if(dates.length){ const mn=new Date(Math.min(...dates)),mx=new Date(Math.max(...dates)); document.getElementById('ib-d').textContent=fd(mn)+' → '+fd(mx); }
+}
+
+function syncF(n,v){
+  const m={p:'fp',par:'fpar',itm:'fitm',typ:'ftyp'};
+  const el=document.getElementById(m[n]); if(el) el.value=v;
+  applyF();
+}
+
+function applyF(){
+  const per=document.getElementById('fp').value;
+  const par=document.getElementById('fpar').value;
+  const itm=document.getElementById('fitm').value;
+  const typ=document.getElementById('ftyp').value;
+  const now=new Date();
+  FD=RAW.filter(r=>{
+    if(par!=='all'&&r.par!==par) return false;
+    if(itm!=='all'&&r.itm!==itm) return false;
+    if(typ!=='all'&&r.vtype!==typ) return false;
+    if(per!=='all'&&r._d){
+      const d=r._d;
+      if(per==='today'&&d.toDateString()!==now.toDateString()) return false;
+      if(per==='week'){const ws=new Date(now);ws.setDate(now.getDate()-now.getDay());if(d<ws) return false;}
+      if(per==='month'&&(d.getMonth()!==now.getMonth()||d.getFullYear()!==now.getFullYear())) return false;
+      if(per==='quarter'&&(Math.floor(d.getMonth()/3)!==Math.floor(now.getMonth()/3)||d.getFullYear()!==now.getFullYear())) return false;
+      if(per==='year'&&d.getFullYear()!==now.getFullYear()) return false;
+    }
+    return true;
+  });
+  document.getElementById('ib-s').textContent=FD.length<RAW.length?`Showing ${FD.length} of ${RAW.length}`:'Showing all';
+  buildAll();
+}
+
+function resetF(){
+  ['fp','fpar','fitm','ftyp','mfp','mfpar','mfitm','mftyp'].forEach(id=>{const el=document.getElementById(id);if(el) el.selectedIndex=0;});
+  FD=[...RAW];
+  document.getElementById('ib-s').textContent='Showing all';
+  buildAll();
+}
+
+/* ===================== BUILD ALL ===================== */
+function buildAll(){ buildKPIs(); buildOvCharts(); buildDailyTab(); buildItemsTab(); buildPartiesTab(); buildProfitTab(); buildRawTable(); updFoot(); }
+
+/* ===================== KPIs ===================== */
+function buildKPIs(){
+  const d=FD, sale=S(d,'iamt'), gross=S(d,'gamt'), tax=S(d,'tax'), disc=S(d,'damt'), qty=S(d,'qty');
+  const profit=d.reduce((s,r)=>s+r._pf,0), margin=sale>0?profit/sale*100:0;
+  const vouchers=new Set(d.map(r=>r.vno)).size, parties=new Set(d.map(r=>r.par)).size, items=new Set(d.map(r=>r.itm)).size;
+  document.getElementById('kgrid').innerHTML=[
+    kc('Total Sale','₹'+f(sale),'Gross ₹'+f(gross),'blue','💹'),
+    kc('Gross Profit','₹'+f(profit),margin.toFixed(1)+'% margin',profit>=0?'green':'red','💰'),
+    kc('GST / Tax','₹'+f(tax),'Collected','purple','🏛'),
+    kc('Discount','₹'+f(disc),'Given out','orange','🏷'),
+    kc('Total Qty',fn(qty),items+' items','teal','📦'),
+    kc('Vouchers',fn(vouchers),parties+' parties','blue','🧾'),
+  ].join('');
+}
+function kc(l,v,s,c,i){return `<div class="kcard ${c}"><div class="kicon">${i}</div><div class="klbl">${l}</div><div class="kval">${v}</div><div class="ksub">${s}</div></div>`;}
+
+/* ===================== OVERVIEW CHARTS ===================== */
+function buildOvCharts(){
+  const bd=G(FD.filter(r=>r._d),r=>fd(r._d)), dl=Object.keys(bd).sort();
+  dc('c-trend'); CH['c-trend']=new Chart($('c-trend'),{type:'line',data:{labels:dl,datasets:[
+    {label:'Sale',data:dl.map(d=>S(bd[d],'iamt')),borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.07)',tension:.4,fill:true,pointRadius:2},
+    {label:'Profit',data:dl.map(d=>bd[d].reduce((s,r)=>s+r._pf,0)),borderColor:'#059669',backgroundColor:'rgba(5,150,105,.05)',tension:.4,fill:true,pointRadius:2,borderDash:[4,2]}
+  ]},options:cO(true)});
+
+  const bi=GB(FD,'itm','iamt',10);
+  dc('c-ti'); CH['c-ti']=new Chart($('c-ti'),{type:'doughnut',data:{labels:bi.map(x=>tr(x.k,15)),datasets:[{data:bi.map(x=>x.v),backgroundColor:pal(bi.length),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:9,padding:6}}}}});
+
+  const bp=GB(FD,'par','iamt',8);
+  dc('c-tp'); CH['c-tp']=new Chart($('c-tp'),{type:'bar',data:{labels:bp.map(x=>tr(x.k,15)),datasets:[{label:'Sale',data:bp.map(x=>x.v),backgroundColor:pal(bp.length,.8),borderRadius:5}]},options:{...cO(),indexAxis:'y'}});
+
+  const bg=GB(FD.map(r=>({...r,_gk:(r.gst||0)+'%'})),'_gk','iamt',8);
+  dc('c-gst'); CH['c-gst']=new Chart($('c-gst'),{type:'pie',data:{labels:bg.map(x=>x.k),datasets:[{data:bg.map(x=>x.v),backgroundColor:['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0d9488'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:9,padding:5}}}}});
+
+  const bdis=GB(FD.filter(r=>r.damt>0),'itm','damt',10);
+  dc('c-disc'); CH['c-disc']=new Chart($('c-disc'),{type:'bar',data:{labels:bdis.map(x=>tr(x.k,13)),datasets:[{label:'Discount',data:bdis.map(x=>x.v),backgroundColor:'rgba(217,119,6,.75)',borderRadius:5}]},options:cO()});
+}
+
+/* ===================== DAILY ===================== */
+function buildDailyTab(){
+  const bd=G(FD.filter(r=>r._d),r=>fd(r._d)), dl=Object.keys(bd).sort();
+  dc('c-db'); CH['c-db']=new Chart($('c-db'),{type:'bar',data:{labels:dl,datasets:[
+    {label:'Sale',data:dl.map(d=>S(bd[d],'iamt')),backgroundColor:'rgba(37,99,235,.75)',borderRadius:3},
+    {label:'Profit',data:dl.map(d=>bd[d].reduce((s,r)=>s+r._pf,0)),backgroundColor:'rgba(5,150,105,.75)',borderRadius:3}
+  ]},options:cO(true)});
+
+  const bw={};
+  FD.filter(r=>r._d).forEach(r=>{const k=wL(r._d);(bw[k]=bw[k]||[]).push(r);});
+  const wl=Object.keys(bw).sort();
+  dc('c-wk'); CH['c-wk']=new Chart($('c-wk'),{type:'bar',data:{labels:wl,datasets:[{label:'Weekly Sale',data:wl.map(w=>S(bw[w],'iamt')),backgroundColor:'rgba(124,58,237,.75)',borderRadius:5}]},options:cO()});
+
+  const bm={};
+  FD.filter(r=>r._d).forEach(r=>{const k=mL(r._d);(bm[k]=bm[k]||[]).push(r);});
+  const ml=Object.keys(bm).sort();
+  dc('c-mn'); CH['c-mn']=new Chart($('c-mn'),{type:'bar',data:{labels:ml,datasets:[{label:'Monthly Sale',data:ml.map(m=>S(bm[m],'iamt')),backgroundColor:'rgba(13,148,136,.75)',borderRadius:5}]},options:cO()});
+
+  document.getElementById('dy-tb').innerHTML=dl.map(d=>{
+    const rows=bd[d],sale=S(rows,'iamt'),tax=S(rows,'tax'),disc=S(rows,'damt'),gross=S(rows,'gamt');
+    const profit=rows.reduce((s,r)=>s+r._pf,0),margin=sale>0?profit/sale*100:0;
+    return `<tr><td>${d}</td><td>${new Set(rows.map(r=>r.vno)).size}</td><td>${new Set(rows.map(r=>r.itm)).size}</td>
+      <td class="mn">${fn(S(rows,'qty'))}</td><td class="mn">₹${f(sale)}</td><td class="mn">₹${f(tax)}</td>
+      <td class="mn">₹${f(disc)}</td><td class="mn">₹${f(gross)}</td>
+      <td class="mn ${profit>=0?'pos':'neg'}">₹${f(profit)}</td>
+      <td class="${margin>=0?'pos':'neg'}">${margin.toFixed(1)}%</td></tr>`;
+  }).join('');
+}
+
+/* ===================== ITEMS ===================== */
+function buildItemsTab(){
+  const bi=G(FD,r=>r.itm||'Unknown');
+  IAD=Object.entries(bi).map(([name,rows])=>{
+    const qty=S(rows,'qty'),sale=S(rows,'iamt'),purchase=rows.reduce((s,r)=>s+r._pa,0);
+    const profit=rows.reduce((s,r)=>s+r._pf,0),margin=sale>0?profit/sale*100:0;
+    return{name,qty,sale,purchase,profit,margin,saleRate:qty>0?sale/qty:0,purRate:qty>0?purchase/qty:0,hsn:rows[0]?.hsn||'',gst:rows[0]?.gst||0};
+  });
+
+  const tS=[...IAD].sort((a,b)=>b.sale-a.sale).slice(0,10);
+  const tQ=[...IAD].sort((a,b)=>b.qty-a.qty).slice(0,10);
+  const tM=[...IAD].filter(i=>i.qty>0).sort((a,b)=>b.margin-a.margin).slice(0,10);
+
+  document.getElementById('il-sale').innerHTML=tS.map((it,i)=>`<div class="irow"><div><div class="iname">${i+1}. ${it.name}</div><div class="idetail">Qty: ${fn(it.qty)}</div></div><div class="ival" style="color:var(--accent)">₹${f(it.sale)}</div></div>`).join('');
+  document.getElementById('il-qty').innerHTML=tQ.map((it,i)=>`<div class="irow"><div><div class="iname">${i+1}. ${it.name}</div><div class="idetail">₹${f(it.sale)}</div></div><div class="ival" style="color:var(--teal)">${fn(it.qty)}</div></div>`).join('');
+  document.getElementById('il-mar').innerHTML=tM.map((it,i)=>`<div class="irow"><div><div class="iname">${i+1}. ${it.name}</div><div class="idetail">₹${f(it.profit)}</div></div><div class="ival" style="color:${it.margin>=0?'var(--green)':'var(--red)'}">${it.margin.toFixed(1)}%</div></div>`).join('');
+
+  const t15=[...IAD].sort((a,b)=>b.sale-a.sale).slice(0,15);
+  dc('c-icmp'); CH['c-icmp']=new Chart($('c-icmp'),{type:'bar',data:{labels:t15.map(i=>tr(i.name,12)),datasets:[
+    {label:'Sale',data:t15.map(i=>i.sale),backgroundColor:'rgba(37,99,235,.75)',borderRadius:3},
+    {label:'Purchase',data:t15.map(i=>i.purchase),backgroundColor:'rgba(220,38,38,.65)',borderRadius:3},
+    {label:'Profit',data:t15.map(i=>i.profit),backgroundColor:'rgba(5,150,105,.75)',borderRadius:3}
+  ]},options:cO(true)});
+
+  rendItm(IAD);
+}
+function rendItm(data){
+  document.getElementById('it-tb').innerHTML=data.map(it=>{
+    const s=it.profit>0?'p':it.profit<0?'l':'n';
+    return `<tr><td>${it.name}</td><td>${it.hsn||'—'}</td><td>${it.gst||0}%</td>
+      <td class="mn">${fn(it.qty)}</td><td class="mn">₹${f(it.saleRate)}</td><td class="mn">₹${f(it.purRate)}</td>
+      <td class="mn">₹${f(it.sale)}</td><td class="mn">₹${f(it.purchase)}</td>
+      <td class="mn ${it.profit>=0?'pos':'neg'}">₹${f(it.profit)}</td>
+      <td class="${it.margin>=0?'pos':'neg'}">${it.margin.toFixed(1)}%</td>
+      <td><span class="bdg bdg-${s}">${s==='p'?'PROFIT':s==='l'?'LOSS':'NEUTRAL'}</span></td></tr>`;
+  }).join('');
+}
+function filtItm(){const q=document.getElementById('is').value.toLowerCase();rendItm(IAD.filter(it=>it.name.toLowerCase().includes(q)));}
+function sortI(k){if(ISK===k)ISD*=-1;else{ISK=k;ISD=-1;}IAD.sort((a,b)=>{const av=a[k]||0,bv=b[k]||0;return typeof av==='string'?av.localeCompare(bv)*ISD:(av-bv)*ISD;});filtItm();}
+
+/* ===================== PARTIES ===================== */
+function buildPartiesTab(){
+  const bp=G(FD,r=>r.par||'Unknown');
+  PAD=Object.entries(bp).map(([name,rows])=>({
+    name,group:rows[0]?.pgrp||'—',vouchers:new Set(rows.map(r=>r.vno)).size,
+    items:new Set(rows.map(r=>r.itm)).size,qty:S(rows,'qty'),sale:S(rows,'iamt'),
+    disc:S(rows,'damt'),tax:S(rows,'tax'),_rows:rows
+  })).map(p=>({...p,avgBill:p.vouchers>0?p.sale/p.vouchers:0})).sort((a,b)=>b.sale-a.sale);
+
+  const t10=PAD.slice(0,10);
+  dc('c-ps'); CH['c-ps']=new Chart($('c-ps'),{type:'bar',data:{labels:t10.map(p=>tr(p.name,15)),datasets:[{label:'Sale',data:t10.map(p=>p.sale),backgroundColor:'rgba(124,58,237,.75)',borderRadius:5}]},options:{...cO(),indexAxis:'y'}});
+
+  const bgp=G(FD,r=>r.pgrp||'Unknown');
+  const grps=Object.entries(bgp).map(([g,v])=>({g,sale:S(v,'iamt')})).sort((a,b)=>b.sale-a.sale);
+  dc('c-pg'); CH['c-pg']=new Chart($('c-pg'),{type:'doughnut',data:{labels:grps.map(g=>g.g),datasets:[{data:grps.map(g=>g.sale),backgroundColor:pal(grps.length),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:9,padding:6}}}}});
+
+  rendPar(PAD);
+}
+function rendPar(data){
+  document.getElementById('pa-tb').innerHTML=data.map(p=>`<tr>
+    <td>${p.name}</td><td>${p.group}</td><td>${p.vouchers}</td><td>${p.items}</td>
+    <td class="mn">${fn(p.qty)}</td><td class="mn">₹${f(p.sale)}</td>
+    <td class="mn">₹${f(p.avgBill)}</td><td class="mn">₹${f(p.disc)}</td><td class="mn">₹${f(p.tax)}</td>
+  </tr>`).join('');
+}
+function filtPar(){const q=document.getElementById('ps').value.toLowerCase();rendPar(PAD.filter(p=>p.name.toLowerCase().includes(q)));}
+
+/* ===================== PROFIT ===================== */
+function buildProfitTab(){
+  const bi=G(FD,r=>r.itm||'Unknown');
+  const items=Object.entries(bi).map(([name,rows])=>{
+    const qty=S(rows,'qty'),sale=S(rows,'iamt'),purchase=rows.reduce((s,r)=>s+r._pa,0);
+    const profit=rows.reduce((s,r)=>s+r._pf,0),disc=S(rows,'damt'),tax=S(rows,'tax');
+    return{name,qty,sale,purchase,profit,disc,tax,margin:sale>0?profit/sale*100:0};
+  }).sort((a,b)=>b.profit-a.profit);
+
+  const prof=items.filter(i=>i.profit>0), loss=items.filter(i=>i.profit<0);
+  const total=items.reduce((s,i)=>s+i.profit,0);
+  document.getElementById('psum').innerHTML=`
+    <div class="pblk"><div class="pico">✅</div><div class="plbl">Profitable Items</div><div class="pval" style="color:var(--green)">${prof.length}</div><div class="pcnt">₹${f(prof.reduce((s,i)=>s+i.profit,0))}</div></div>
+    <div class="pblk"><div class="pico">❌</div><div class="plbl">Loss Items</div><div class="pval" style="color:var(--red)">${loss.length}</div><div class="pcnt">₹${f(loss.reduce((s,i)=>s+i.profit,0))}</div></div>
+    <div class="pblk"><div class="pico">💰</div><div class="plbl">Net Profit</div><div class="pval" style="color:${total>=0?'var(--green)':'var(--red)'}">₹${f(total)}</div><div class="pcnt">${items.length} items</div></div>`;
+
+  const t20=[...items].sort((a,b)=>Math.abs(b.profit)-Math.abs(a.profit)).slice(0,20);
+  dc('c-pit'); CH['c-pit']=new Chart($('c-pit'),{type:'bar',data:{labels:t20.map(i=>tr(i.name,12)),datasets:[{label:'Profit',data:t20.map(i=>i.profit),backgroundColor:t20.map(i=>i.profit>=0?'rgba(5,150,105,.75)':'rgba(220,38,38,.75)'),borderRadius:4}]},options:{...cO(),plugins:{...cO().plugins,legend:{display:false}}}});
+
+  const rn={'<0%':0,'0-10%':0,'10-20%':0,'20-30%':0,'30-50%':0,'>50%':0};
+  items.forEach(i=>{if(i.margin<0)rn['<0%']++;else if(i.margin<10)rn['0-10%']++;else if(i.margin<20)rn['10-20%']++;else if(i.margin<30)rn['20-30%']++;else if(i.margin<50)rn['30-50%']++;else rn['>50%']++;});
+  dc('c-mrd'); CH['c-mrd']=new Chart($('c-mrd'),{type:'doughnut',data:{labels:Object.keys(rn),datasets:[{data:Object.values(rn),backgroundColor:['#dc2626','#d97706','#2563eb','#7c3aed','#059669','#0d9488'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:9,padding:6}}}}});
+
+  const bdt=G(FD.filter(r=>r._d),r=>fd(r._d)), dl=Object.keys(bdt).sort();
+  dc('c-prt'); CH['c-prt']=new Chart($('c-prt'),{type:'line',data:{labels:dl,datasets:[{label:'Profit',data:dl.map(d=>bdt[d].reduce((s,r)=>s+r._pf,0)),borderColor:'#059669',backgroundColor:'rgba(5,150,105,.07)',tension:.4,fill:true,pointRadius:2}]},options:cO()});
+
+  document.getElementById('pr-tb').innerHTML=items.map(it=>{
+    const net=it.profit-it.disc,s=it.profit>0?'p':it.profit<0?'l':'n';
+    return `<tr><td>${it.name}</td><td class="mn">${fn(it.qty)}</td><td class="mn">₹${f(it.sale)}</td>
+      <td class="mn">₹${f(it.purchase)}</td><td class="mn ${it.profit>=0?'pos':'neg'}">₹${f(it.profit)}</td>
+      <td class="mn">₹${f(it.disc)}</td><td class="mn">₹${f(it.tax)}</td>
+      <td class="mn ${net>=0?'pos':'neg'}">₹${f(net)}</td>
+      <td class="${it.margin>=0?'pos':'neg'}">${it.margin.toFixed(1)}%</td>
+      <td><span class="bdg bdg-${s}">${s==='p'?'PROFIT':s==='l'?'LOSS':'NEUTRAL'}</span></td></tr>`;
+  }).join('');
+}
+
+/* ===================== RAW ===================== */
+function buildRawTable(){rendRaw(FD);}
+function rendRaw(data){
+  if(!data.length){document.getElementById('raw-c').innerHTML='<div class="nodata"><div class="ndi">📭</div>Koi data nahi</div>';return;}
+  const cols=Object.keys(data[0]).filter(k=>k.startsWith('_c')).map(k=>k.slice(2));
+  document.getElementById('raw-c').innerHTML=`<table>
+    <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${data.slice(0,500).map(r=>`<tr>${cols.map(c=>`<td>${r['_c'+c]??'—'}</td>`).join('')}</tr>`).join('')}</tbody>
+  </table>`;
+}
+function filtRaw(){
+  const q=document.getElementById('rs').value.toLowerCase();
+  rendRaw(FD.filter(r=>Object.values(r._orig||{}).some(v=>String(v).toLowerCase().includes(q))));
+}
+
+/* ===================== FOOTER ===================== */
+function updFoot(){
+  document.getElementById('ft-r').textContent=FD.length;
+  document.getElementById('ft-i').textContent=new Set(FD.map(r=>r.itm)).size;
+  document.getElementById('ft-p').textContent=new Set(FD.map(r=>r.par)).size;
+  const pf=FD.reduce((s,r)=>s+r._pf,0);
+  document.getElementById('ft-pr').textContent='₹'+f(pf);
+}
+
+/* ===================== TABS ===================== */
+function switchTab(n){
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.toggle('ac',b.getAttribute('onclick')?.includes(`'${n}'`)));
+  document.querySelectorAll('.tpanel').forEach(p=>p.classList.remove('ac'));
+  document.getElementById('t-'+n).classList.add('ac');
+}
+
+/* ===================== DRAWER ===================== */
+function toggleDrawer(){const d=document.getElementById('drawer'),h=document.getElementById('hmenu');const op=d.classList.toggle('op');h.classList.toggle('op',op);}
+function closeDrawer(){document.getElementById('drawer').classList.remove('op');document.getElementById('hmenu').classList.remove('op');}
+function bgClose(e){if(e.target===document.getElementById('drawer'))closeDrawer();}
+
+/* ===================== FULLSCREEN ===================== */
+function toggleFS(){
+  const btn=document.getElementById('fsbtn');
+  if(!document.fullscreenElement){document.documentElement.requestFullscreen().catch(()=>{});btn.textContent='✕FS';}
+  else{document.exitFullscreen();btn.textContent='⛶';}
+}
+document.addEventListener('fullscreenchange',()=>{document.getElementById('fsbtn').textContent=document.fullscreenElement?'✕FS':'⛶';});
+
+/* ===================== EXPORT ===================== */
+function exportD(){
+  const ws=XLSX.utils.json_to_sheet(FD.map(r=>r._orig));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Sales Report');
+  XLSX.writeFile(wb,'sales-report-'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+/* ===================== SAMPLE DATA ===================== */
+function loadSample(){
+  const items=['Notebook A4','Ball Pen Blue','Stapler','File Folder','Sticky Notes','Highlighter','Correction Fluid','Eraser','Pencil HB','Tape Roll','Binder Clip','Paper Ream'];
+  const parties=['Sharma Stationery','Gupta Traders','Patel & Sons','Kumar Enterprises','Singh Brothers','Jain & Co','Mehta Suppliers'];
+  const groups=['Retailer','Wholesaler','Distributor'];
+  const rows=[]; let vno=1001; const start=new Date('2024-01-01');
+  for(let d=0;d<90;d++){
+    const date=new Date(start);date.setDate(start.getDate()+d);
+    for(let t=0,n=Math.floor(Math.random()*8)+2;t<n;t++){
+      const item=items[Math.floor(Math.random()*items.length)];
+      const party=parties[Math.floor(Math.random()*parties.length)];
+      const pur=20+Math.random()*180, sale=pur*(1.05+Math.random()*.4);
+      const qty=Math.floor(Math.random()*50)+1, gst=[5,12,18][Math.floor(Math.random()*3)];
+      const iAmt=qty*sale, disc=Math.random()>.7?Math.floor(iAmt*.05):0, tax=(iAmt-disc)*gst/100;
+      rows.push({
+        'Voucher Number':'V'+vno++,'Date':date.toLocaleDateString('en-IN'),
+        'Voucher Type':Math.random()>.9?'Sales Return':'Sales',
+        'Party Name':party,'Party Group':groups[Math.floor(Math.random()*3)],
+        'Item Name':item,'Item HSN':'8414'+Math.floor(Math.random()*10),'Item rate of GST':gst,
+        'Billed Quantity':qty,'Sale Rate':+sale.toFixed(2),'Purchase Rate':+pur.toFixed(2),
+        'Unit':['Pcs','Box','Nos'][Math.floor(Math.random()*3)],
+        'Discount':disc>0?'5%':'0','Discount Amount':+disc.toFixed(2),
+        'Margin':+((sale-pur)/pur*100).toFixed(2),'Item Amount':+iAmt.toFixed(2),
+        'Tax':+tax.toFixed(2),'Grass Amount':+(iAmt-disc+tax).toFixed(2)
+      });
+    }
+  }
+  RAW=norm(rows);FD=[...RAW];
+  setFI('Sample Data (90 days)',RAW.length);popFilters();showApp();buildAll();
+}
+
+/* ===================== HELPERS ===================== */
+function S(arr,k){return arr.reduce((s,r)=>s+(parseFloat(r[k])||0),0)}
+function G(arr,fn){return arr.reduce((a,r)=>{const k=fn(r);(a[k]=a[k]||[]).push(r);return a},{})}
+function GB(arr,gk,vk,top=10){
+  const g=G(arr,r=>r[gk]||'Unknown');
+  return Object.entries(g).map(([k,v])=>({k,v:S(v,vk)})).sort((a,b)=>b.v-a.v).slice(0,top);
+}
+function f(n){const a=Math.abs(n),s=n<0?'-':'';return s+(a>=1e7?(a/1e7).toFixed(2)+'Cr':a>=1e5?(a/1e5).toFixed(2)+'L':a>=1e3?(a/1e3).toFixed(1)+'K':a.toFixed(0))}
+function fn(n){return Math.round(n).toLocaleString('en-IN')}
+function fd(d){if(!d)return'—';return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'})}
+function tr(s,n){return s&&s.length>n?s.slice(0,n)+'…':s||''}
+function wL(d){const w=new Date(d);w.setDate(d.getDate()-d.getDay());return'W'+w.toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}
+function mL(d){return d.toLocaleDateString('en-IN',{month:'short',year:'2-digit'})}
+function $(id){return document.getElementById(id)}
+function dc(id){if(CH[id]){CH[id].destroy();delete CH[id]}}
+function pal(n){const c=['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0d9488','#ea580c','#0284c7','#65a30d','#db2777','#0891b2','#9333ea'];return Array.from({length:n},(_,i)=>c[i%c.length])}
+function cO(leg=false){
+  return{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{
+      legend:leg?{display:true,position:'top',labels:{boxWidth:9,font:{size:11},padding:8}}:{display:false},
+      tooltip:{callbacks:{label:ctx=>' ₹'+Number(ctx.raw).toLocaleString('en-IN')}}
+    },
+    scales:{
+      x:{ticks:{font:{size:10},color:'#94a3b8',maxRotation:45},grid:{color:'#f1f5f9'}},
+      y:{ticks:{font:{size:10},color:'#94a3b8',callback:v=>'₹'+f(v)},grid:{color:'#f1f5f9'}}
+    }
+  };
+}
+
+/* Resize: redraw charts */
+let RT;
+window.addEventListener('resize',()=>{clearTimeout(RT);RT=setTimeout(()=>{if(FD.length)buildAll();},280);});
+</script>
+</body>
+</html>
