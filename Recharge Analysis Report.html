@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>Financial Analytics · Month Filter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        * { font-family: 'Inter', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+        
+        /* CSS Variables for theming */
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --text-tertiary: #64748b;
+            --border-color: #e2e8f0;
+            --accent-color: #0284c7;
+            --accent-light: #e0f2fe;
+            --input-bg: #ffffff;
+            --input-text: #0f172a;
+            --input-border: #e2e8f0;
+            --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            
+            /* Chart color palette */
+            --chart-1: #2563eb;  --chart-2: #16a34a;  --chart-3: #dc2626;  --chart-4: #9333ea;
+            --chart-5: #ea580c;  --chart-6: #0891b2;  --chart-7: #4f46e5;  --chart-8: #db2777;
+            --chart-9: #ca8a04;  --chart-10: #059669;
+        }
+
+        .dark {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-tertiary: #94a3b8;
+            --border-color: #334155;
+            --accent-color: #eab308;
+            --accent-light: #334155;
+            --input-bg: #1e293b;
+            --input-text: #f8fafc;
+            --input-border: #475569;
+            --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            
+            --chart-1: #3b82f6; --chart-2: #22c55e; --chart-3: #ef4444; --chart-4: #a855f7;
+            --chart-5: #f97316; --chart-6: #06b6d4; --chart-7: #6366f1; --chart-8: #ec4899;
+            --chart-9: #eab308; --chart-10: #10b981;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Login overlay */
+        #login-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .dark #login-overlay {
+            background: rgba(2, 6, 23, 0.95);
+        }
+        .login-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 2.5rem;
+            padding: 2.5rem;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: var(--card-shadow);
+        }
+
+        input, select, textarea {
+            background-color: var(--input-bg) !important;
+            color: var(--input-text) !important;
+            border: 1px solid var(--input-border) !important;
+        }
+        input::placeholder, select::placeholder {
+            color: var(--text-tertiary) !important;
+        }
+        .filter-select {
+            background-color: var(--input-bg) !important;
+            color: var(--input-text) !important;
+            border: 1px solid var(--input-border) !important;
+        }
+        .filter-select option {
+            background-color: var(--input-bg);
+            color: var(--input-text);
+        }
+
+        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: var(--bg-tertiary); }
+        .custom-scroll::-webkit-scrollbar-thumb { background: var(--text-tertiary); border-radius: 20px; }
+        
+        .sidebar-link { transition: all 0.2s ease; white-space: nowrap; }
+        .kpi-value { font-size: clamp(1rem, 3.5vw, 1.75rem); line-height: 1.2; }
+        
+        .card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--card-shadow);
+        }
+        .card:hover { transform: translateY(-3px); border-color: var(--accent-color); }
+        
+        .view { display: none; }
+        .view.active { display: block; }
+        
+        .sidebar-collapsed { width: 80px !important; }
+        .sidebar-collapsed span:not(.keep-visible) { display: none !important; }
+        .sidebar-expanded { width: 280px !important; }
+        
+        .filter-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+        .filter-scroll::-webkit-scrollbar { height: 3px; }
+        
+        .tooltip { position: relative; }
+        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+        .tooltip-text {
+            visibility: hidden; opacity: 0; position: absolute; bottom: 130%; left: 50%;
+            transform: translateX(-50%); background: var(--bg-secondary); color: var(--text-primary);
+            padding: 6px 14px; border-radius: 30px; font-size: 11px; font-weight: 500;
+            white-space: nowrap; border: 1px solid var(--border-color); box-shadow: var(--card-shadow);
+            z-index: 100; transition: 0.15s;
+        }
+        
+        .table-container { overflow-x: auto; border-radius: 16px; }
+        th { position: sticky; top: 0; background: var(--bg-tertiary); z-index: 10; color: var(--text-primary); }
+        
+        .hidden-overlay { display: none !important; }
+        
+        .responsive-text-xs { font-size: clamp(0.7rem, 2vw, 0.75rem); }
+        .responsive-text-sm { font-size: clamp(0.8rem, 2.5vw, 0.875rem); }
+        .chart-container { width: 100%; height: clamp(250px, 50vh, 400px); position: relative; }
+    </style>
+</head>
+<body class="dark">
+    <!-- LOGIN OVERLAY -->
+    <div id="login-overlay">
+        <div class="login-card">
+            <div class="flex justify-center mb-6">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-3xl flex items-center justify-center text-white font-extrabold text-3xl shadow-lg">R</div>
+            </div>
+            <h2 class="responsive-text-2xl font-bold text-center mb-2">Dashboard</h2>
+            <p class="text-tertiary text-center responsive-text-sm mb-8">Sign in with credentials</p>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-tertiary responsive-text-sm mb-1 ml-2">User ID</label>
+                    <input type="text" id="login-username" value="" class="w-full rounded-3xl px-5 py-3 focus:ring-2 focus:ring-accent">
+                </div>
+                <div>
+                    <label class="block text-tertiary responsive-text-sm mb-1 ml-2">Password</label>
+                    <input type="password" id="login-password" placeholder="Enter password" class="w-full rounded-3xl px-5 py-3 focus:ring-2 focus:ring-accent">
+                </div>
+                <button onclick="performLogin()" class="w-full bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-white font-bold py-3 rounded-3xl responsive-text-lg transition-all mt-4 shadow-md">Unlock Dashboard</button>
+                <p id="login-error" class="text-red-500 text-xs text-center mt-2 hidden">Invalid credentials (Use Admin / 1234)</p>
+            </div>
+            <div class="text-center text-tertiary text-xs mt-6">© Analysis Dashboard</div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD (initially hidden) -->
+    <div id="dashboard-app" class="flex h-full w-full relative hidden">
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="bg-secondary border-r border-border flex flex-col transition-all duration-300 h-screen overflow-y-auto custom-scroll sidebar-expanded">
+            <div class="px-4 lg:px-6 py-5 border-b border-border flex items-center justify-between">
+                <div class="flex items-center gap-x-3">
+                    <div class="w-9 h-9 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl">R</div>
+                    <span id="sidebar-brand" class="font-bold tracking-tight responsive-text-xl text-primary">Dashboard</span>
+                </div>
+                <button onclick="toggleSidebar()" id="sidebar-toggle-btn" class="text-tertiary hover:text-primary">
+                    <i data-lucide="chevrons-left" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="flex-1 px-2 lg:px-3 py-6 overflow-y-auto">
+                <div class="text-xs font-semibold text-tertiary px-3 mb-2" id="nav-section-title">REPORTS</div>
+                <nav class="space-y-1.5">
+                    <a onclick="switchView('overview')" id="nav-overview" class="sidebar-link flex items-center gap-x-3 lg:px-4 px-3 py-3 responsive-text-sm font-medium rounded-2xl hover:bg-tertiary cursor-pointer text-secondary hover:text-primary">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5 shrink-0"></i><span>Overview</span>
+                    </a>
+                    <a onclick="switchView('operator')" id="nav-operator" class="sidebar-link flex items-center gap-x-3 lg:px-4 px-3 py-3 responsive-text-sm font-medium rounded-2xl hover:bg-tertiary cursor-pointer text-secondary hover:text-primary">
+                        <i data-lucide="users" class="w-5 h-5 shrink-0"></i><span>Operator Analysis</span>
+                    </a>
+                    <a onclick="switchView('system')" id="nav-system" class="sidebar-link flex items-center gap-x-3 lg:px-4 px-3 py-3 responsive-text-sm font-medium rounded-2xl hover:bg-tertiary cursor-pointer text-secondary hover:text-primary">
+                        <i data-lucide="monitor" class="w-5 h-5 shrink-0"></i><span>System Use</span>
+                    </a>
+                    <a onclick="switchView('circular')" id="nav-circular" class="sidebar-link flex items-center gap-x-3 lg:px-4 px-3 py-3 responsive-text-sm font-medium rounded-2xl hover:bg-tertiary cursor-pointer text-secondary hover:text-primary">
+                        <i data-lucide="circle" class="w-5 h-5 shrink-0"></i><span>Circular Analysis</span>
+                    </a>
+                    <a onclick="switchView('trends')" id="nav-trends" class="sidebar-link flex items-center gap-x-3 lg:px-4 px-3 py-3 responsive-text-sm font-medium rounded-2xl hover:bg-tertiary cursor-pointer text-secondary hover:text-primary">
+                        <i data-lucide="trending-up" class="w-5 h-5 shrink-0"></i><span>Time Trends</span>
+                    </a>
+                    <a onclick="switchView('table')" id="nav-table" class="sidebar-link flex items-center gap-x-3 lg:px-4 px-3 py-3 responsive-text-sm font-medium rounded-2xl hover:bg-tertiary cursor-pointer text-secondary hover:text-primary">
+                        <i data-lucide="table" class="w-5 h-5 shrink-0"></i><span>Data Table</span>
+                    </a>
+                </nav>
+            </div>
+            <div class="p-4 border-t border-border">
+                <div class="bg-tertiary rounded-3xl p-4 text-xs">
+                    <div class="flex items-center gap-x-2 text-accent">
+                        <i data-lucide="check-circle" class="w-4 h-4 shrink-0"></i>
+                        <span class="sidebar-footer-text font-medium">Data from Excel</span>
+                    </div>
+                    <div id="record-count" class="text-tertiary mt-1 sidebar-footer-text truncate">0 records loaded</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 flex flex-col w-full min-w-0 bg-primary h-screen overflow-hidden">
+            <header class="bg-secondary border-b border-border px-3 md:px-5 lg:px-6 py-3 flex flex-col lg:flex-row lg:items-center gap-3">
+                <div class="flex items-center justify-between w-full lg:w-auto">
+                    <div class="flex items-center gap-x-2">
+                        <button onclick="toggleSidebar()" class="text-tertiary hover:text-primary lg:hidden">
+                            <i data-lucide="menu" class="w-6 h-6"></i>
+                        </button>
+                        <h1 id="page-title" class="responsive-text-xl lg:responsive-text-2xl font-bold text-primary">Overview</h1>
+                    </div>
+                    <div class="flex lg:hidden items-center gap-2">
+                        <button onclick="toggleTheme()" class="bg-tertiary p-2 rounded-full text-primary">
+                            <i data-lucide="sun" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="triggerFileUpload()" class="bg-tertiary p-2 rounded-full text-primary">
+                            <i data-lucide="upload" class="w-4 h-4"></i>
+                        </button>
+                        <!-- Logout button mobile -->
+                        <button onclick="logout()" class="bg-tertiary p-2 rounded-full text-primary">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- FILTERS (Date range removed, Month added) -->
+                <div class="filter-scroll flex items-center gap-2 w-full lg:flex-1 lg:justify-end pb-1">
+                    <!-- MONTH FILTER (replaces date range) -->
+                    <div class="tooltip shrink-0">
+                        <span class="tooltip-text">Select month</span>
+                        <select id="month-filter" onchange="applyFilters()" class="filter-select bg-tertiary responsive-text-xs rounded-3xl px-3 py-2 md:px-4 md:py-2 pr-7 focus:ring-1 focus:ring-accent w-32 md:w-36">
+                            <option value="">All Months</option>
+                            <!-- will be populated dynamically from data -->
+                        </select>
+                    </div>
+                    
+                    <div class="h-6 w-px bg-border shrink-0"></div>
+                    
+                    <!-- Operator Filter -->
+                    <div class="tooltip shrink-0">
+                        <span class="tooltip-text">Operator</span>
+                        <select id="operator-filter" onchange="applyFilters()" class="filter-select bg-tertiary responsive-text-xs rounded-3xl px-3 py-2 md:px-4 md:py-2 pr-7 focus:ring-1 focus:ring-accent max-w-[130px] truncate">
+                            <option value="">All Operators</option>
+                        </select>
+                    </div>
+                    
+                    <div class="h-6 w-px bg-border shrink-0"></div>
+                    
+                    <!-- System Filter -->
+                    <div class="tooltip shrink-0">
+                        <span class="tooltip-text">System use</span>
+                        <select id="system-filter" onchange="applyFilters()" class="filter-select bg-tertiary responsive-text-xs rounded-3xl px-3 py-2 md:px-4 md:py-2 pr-7 focus:ring-1 focus:ring-accent max-w-[130px] truncate">
+                            <option value="">All System Use</option>
+                        </select>
+                    </div>
+                    
+                    <div class="h-6 w-px bg-border shrink-0"></div>
+                    
+                    <!-- Circular Filter -->
+                    <div class="tooltip shrink-0">
+                        <span class="tooltip-text">Circular</span>
+                        <select id="circular-filter" onchange="applyFilters()" class="filter-select bg-tertiary responsive-text-xs rounded-3xl px-3 py-2 md:px-4 md:py-2 pr-7 focus:ring-1 focus:ring-accent max-w-[130px] truncate">
+                            <option value="">All Circular</option>
+                        </select>
+                    </div>
+
+                    <!-- Desktop Action Buttons (includes logout) -->
+                    <div class="hidden lg:flex items-center gap-2 ml-2 shrink-0">
+                        <button onclick="toggleTheme()" class="tooltip w-9 h-9 flex items-center justify-center bg-tertiary hover:bg-opacity-80 rounded-3xl text-primary">
+                            <span class="tooltip-text">Toggle Theme</span>
+                            <i data-lucide="sun" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="triggerFileUpload()" class="tooltip bg-tertiary hover:bg-opacity-80 px-4 py-2 rounded-3xl responsive-text-sm font-medium flex items-center gap-1 text-primary">
+                            <span class="tooltip-text">Upload Excel/CSV</span>
+                            <i data-lucide="upload" class="w-4 h-4"></i>
+                            <span>Upload</span>
+                        </button>
+                        <button onclick="clearAllData()" class="tooltip bg-tertiary hover:bg-red-500/20 text-red-500 p-2 rounded-3xl">
+                            <span class="tooltip-text">Clear all data</span>
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="refreshDashboard()" class="tooltip bg-tertiary hover:bg-opacity-80 p-2 rounded-3xl text-primary">
+                            <span class="tooltip-text">Refresh</span>
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="toggleFullscreen()" class="tooltip w-9 h-9 flex items-center justify-center bg-tertiary hover:bg-opacity-80 rounded-3xl text-primary">
+                            <span class="tooltip-text">Fullscreen</span>
+                            <i data-lucide="maximize-2" class="w-4 h-4"></i>
+                        </button>
+                        <!-- LOGOUT BUTTON DESKTOP -->
+                        <button onclick="logout()" class="tooltip bg-red-500 hover:bg-red-600 px-4 py-2 rounded-3xl text-white flex items-center gap-1">
+                            <span class="tooltip-text">Logout</span>
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                            <span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- CONTENT VIEWS (unchanged) -->
+            <div id="main-content" class="flex-1 overflow-y-auto p-3 md:p-5 lg:p-6 space-y-6 bg-primary custom-scroll">
+                <!-- Overview View -->
+                <div id="overview-view" class="view active space-y-6">
+                    <div id="kpi-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 md:gap-3"></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        <div class="card rounded-3xl p-4 md:p-5">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="font-bold responsive-text-base md:responsive-text-lg text-primary">📈 Day-wise Sale</h3>
+                                    <p class="text-tertiary responsive-text-xs">Filtered data</p>
+                                </div>
+                            </div>
+                            <div class="chart-container relative">
+                                <canvas id="time-series-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card rounded-3xl p-4 md:p-5">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="font-bold responsive-text-base md:responsive-text-lg text-primary">📊 Sale vs R-Offer</h3>
+                                    <p class="text-tertiary responsive-text-xs">By particular name</p>
+                                </div>
+                            </div>
+                            <div class="chart-container relative">
+                                <canvas id="comparison-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operator View -->
+                <div id="operator-view" class="view">
+                    <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
+                        <div class="xl:col-span-3 card rounded-3xl p-5">
+                            <h3 class="font-bold responsive-text-lg mb-4 flex gap-2"><i data-lucide="users" class="w-5 h-5 text-accent"></i> Operator-wise Summary</h3>
+                            <div class="table-container max-h-[450px] custom-scroll">
+                                <table id="operator-summary-table" class="w-full responsive-text-sm"></table>
+                            </div>
+                        </div>
+                        <div class="xl:col-span-2 card rounded-3xl p-5">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                                <h3 class="font-bold responsive-text-lg">🍩 Distribution</h3>
+                                <select id="operator-metric-select" onchange="updateOperatorPie()" class="bg-tertiary responsive-text-sm rounded-2xl px-3 py-2 text-primary border border-border"></select>
+                            </div>
+                            <div class="chart-container flex items-center justify-center">
+                                <canvas id="operator-pie-chart" class="max-h-64 w-full"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System View -->
+                <div id="system-view" class="view">
+                    <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
+                        <div class="xl:col-span-3 card rounded-3xl p-5">
+                            <h3 class="font-bold responsive-text-lg mb-4 flex gap-2"><i data-lucide="monitor" class="w-5 h-5 text-accent"></i> System Use Summary</h3>
+                            <div class="table-container max-h-[450px] custom-scroll">
+                                <table id="system-summary-table" class="w-full responsive-text-sm"></table>
+                            </div>
+                        </div>
+                        <div class="xl:col-span-2 card rounded-3xl p-5">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                                <h3 class="font-bold responsive-text-lg">📊 Breakdown</h3>
+                                <select id="system-metric-select" onchange="updateSystemBar()" class="bg-tertiary responsive-text-sm rounded-2xl px-3 py-2 text-primary border border-border"></select>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="system-bar-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Circular View -->
+                <div id="circular-view" class="view">
+                    <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
+                        <div class="xl:col-span-3 card rounded-3xl p-5">
+                            <h3 class="font-bold responsive-text-lg mb-4 flex gap-2"><i data-lucide="circle" class="w-5 h-5 text-accent"></i> Circular Summary</h3>
+                            <div class="table-container max-h-[450px] custom-scroll">
+                                <table id="circular-summary-table" class="w-full responsive-text-sm"></table>
+                            </div>
+                        </div>
+                        <div class="xl:col-span-2 card rounded-3xl p-5">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                                <h3 class="font-bold responsive-text-lg">🍩 Donut View</h3>
+                                <select id="circular-metric-select" onchange="updateCircularDonut()" class="bg-tertiary responsive-text-sm rounded-2xl px-3 py-2 text-primary border border-border"></select>
+                            </div>
+                            <div class="chart-container flex items-center justify-center">
+                                <canvas id="circular-donut-chart" class="max-h-64 w-full"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trends View -->
+                <div id="trends-view" class="view space-y-6">
+                    <div class="card rounded-3xl p-5">
+                        <h3 class="font-bold responsive-text-xl mb-4">📈 Day-wise Sale (Expanded)</h3>
+                        <div class="chart-container"><canvas id="trends-time-chart"></canvas></div>
+                    </div>
+                    <div class="card rounded-3xl p-5">
+                        <h3 class="font-bold responsive-text-xl mb-4">📊 Sale vs R-Offer (Full)</h3>
+                        <div class="chart-container"><canvas id="trends-comparison-chart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Table View -->
+                <div id="table-view" class="view">
+                    <div class="card rounded-3xl p-5">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
+                            <input id="table-search" onkeyup="renderDataTable()" placeholder="🔍 Search any column..." class="bg-tertiary border border-border focus:border-accent rounded-3xl px-5 py-2.5 w-full sm:w-80 responsive-text-sm text-primary">
+                            <span class="responsive-text-xs text-tertiary">Click headers to sort</span>
+                        </div>
+                        <div class="table-container max-h-[calc(100vh-250px)] custom-scroll">
+                            <table id="data-table" class="w-full responsive-text-sm">
+                                <thead id="table-header"></thead>
+                                <tbody id="data-tbody" class="divide-y divide-border"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="bg-secondary border-t border-border px-4 md:px-6 py-2.5 flex flex-col sm:flex-row justify-between items-center responsive-text-xs text-tertiary gap-1">
+                <span>Dashboard Generated By Sunil Kumar Kashyap</span>
+                <div class="flex items-center gap-4">
+                    <span onclick="loadSampleData()" class="cursor-pointer hover:text-accent transition flex items-center gap-1">
+                        <i data-lucide="database" class="w-3.5 h-3.5"></i> Default Load Sample Data
+                    </span>
+                    <span class="text-border">|</span>
+                    <span id="last-updated" class="font-mono"></span>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- File Upload -->
+    <input type="file" id="file-upload" accept=".xlsx,.csv, .xls" class="hidden" onchange="handleFileUpload(event)">
+
+    <script>
+        // ========== GLOBALS ==========
+        let allData = [];
+        let filteredData = [];
+        let currentView = 'overview';
+        let isSidebarCollapsed = false;
+        let timeChart, comparisonChart, operatorPieChart, systemBarChart, circularDonutChart, trendsTimeChart, trendsComparisonChart;
+        let currentSort = { key: null, dir: 'asc' };
+        
+        const kpiMetrics = ["Purchase Balance","Digital Payment Payout","Return","Payout","R-Offer","Sale","Closing Balance"];
+        const numericMetrics = ["Opening Balance","Purchase Balance","Digital Payment Payout","Return","Payout","R-Offer","Sale","Closing Balance","Actual Closing Balance","Diff"];
+        const allColumns = ["Operator","Date","Lapu ID","Status","System Use","Code","Circular","Particular Name","Opening Balance","Purchase Balance","Digital Payment Payout","Return","Payout","R-Offer","Sale","Closing Balance","Actual Closing Balance","Diff","Remarks"];
+        
+        const getChartColors = () => {
+            const style = getComputedStyle(document.body);
+            return [style.getPropertyValue('--chart-1'), style.getPropertyValue('--chart-2'), style.getPropertyValue('--chart-3'), style.getPropertyValue('--chart-4'), style.getPropertyValue('--chart-5'), style.getPropertyValue('--chart-6'), style.getPropertyValue('--chart-7'), style.getPropertyValue('--chart-8'), style.getPropertyValue('--chart-9'), style.getPropertyValue('--chart-10')].map(s => s.trim());
+        };
+
+        // ========== SAMPLE DATA ==========
+        function generateSampleData() {
+            return [
+                { "Operator": "RAM KUMAR", "Date": "2025-01-01", "Lapu ID": "L001", "Status": "Active", "System Use": "POS", "Code": "C01", "Circular": "A", "Particular Name": "Product A", "Opening Balance": 1000, "Purchase Balance": 5000, "Digital Payment Payout": 2000, "Return": 100, "Payout": 3000, "R-Offer": 500, "Sale": 4500, "Closing Balance": 1500, "Actual Closing Balance": 1500, "Diff": 0, "Remarks": "" },
+                { "Operator": "SITA DEVI", "Date": "2025-01-01", "Lapu ID": "L002", "Status": "Active", "System Use": "Mobile", "Code": "C02", "Circular": "B", "Particular Name": "Product B", "Opening Balance": 1500, "Purchase Balance": 6000, "Digital Payment Payout": 2500, "Return": 150, "Payout": 3500, "R-Offer": 600, "Sale": 5500, "Closing Balance": 2000, "Actual Closing Balance": 1950, "Diff": -50, "Remarks": "Adjustment" },
+                { "Operator": "MOHAN SINGH", "Date": "2025-02-02", "Lapu ID": "L003", "Status": "Active", "System Use": "Web", "Code": "C03", "Circular": "A", "Particular Name": "Product C", "Opening Balance": 2000, "Purchase Balance": 7000, "Digital Payment Payout": 3000, "Return": 200, "Payout": 4000, "R-Offer": 700, "Sale": 6500, "Closing Balance": 2500, "Actual Closing Balance": 2500, "Diff": 0, "Remarks": "" },
+                { "Operator": "RAJESH KUMAR", "Date": "2025-02-02", "Lapu ID": "L004", "Status": "Inactive", "System Use": "POS", "Code": "C04", "Circular": "C", "Particular Name": "Product D", "Opening Balance": 2500, "Purchase Balance": 8000, "Digital Payment Payout": 3500, "Return": 250, "Payout": 4500, "R-Offer": 800, "Sale": 7500, "Closing Balance": 3000, "Actual Closing Balance": 3000, "Diff": 0, "Remarks": "" },
+                { "Operator": "ANITA SHARMA", "Date": "2025-03-03", "Lapu ID": "L005", "Status": "Active", "System Use": "Mobile", "Code": "C05", "Circular": "B", "Particular Name": "Product E", "Opening Balance": 3000, "Purchase Balance": 9000, "Digital Payment Payout": 4000, "Return": 300, "Payout": 5000, "R-Offer": 900, "Sale": 8500, "Closing Balance": 3500, "Actual Closing Balance": 3450, "Diff": -50, "Remarks": "Pending" },
+                { "Operator": "SUNIL KUMAR", "Date": "2025-03-03", "Lapu ID": "L006", "Status": "Active", "System Use": "Web", "Code": "C06", "Circular": "A", "Particular Name": "Product F", "Opening Balance": 3500, "Purchase Balance": 10000, "Digital Payment Payout": 4500, "Return": 350, "Payout": 5500, "R-Offer": 1000, "Sale": 9500, "Closing Balance": 4000, "Actual Closing Balance": 4000, "Diff": 0, "Remarks": "" },
+                { "Operator": "RAM KUMAR", "Date": "2025-01-04", "Lapu ID": "L001", "Status": "Active", "System Use": "POS", "Code": "C01", "Circular": "C", "Particular Name": "Product G", "Opening Balance": 4000, "Purchase Balance": 11000, "Digital Payment Payout": 5000, "Return": 400, "Payout": 6000, "R-Offer": 1100, "Sale": 10500, "Closing Balance": 4500, "Actual Closing Balance": 4500, "Diff": 0, "Remarks": "" },
+                { "Operator": "SITA DEVI", "Date": "2025-01-04", "Lapu ID": "L002", "Status": "Active", "System Use": "Mobile", "Code": "C02", "Circular": "B", "Particular Name": "Product H", "Opening Balance": 4500, "Purchase Balance": 12000, "Digital Payment Payout": 5500, "Return": 450, "Payout": 6500, "R-Offer": 1200, "Sale": 11500, "Closing Balance": 5000, "Actual Closing Balance": 5000, "Diff": 0, "Remarks": "" },
+                { "Operator": "MOHAN SINGH", "Date": "2025-02-05", "Lapu ID": "L003", "Status": "Inactive", "System Use": "Web", "Code": "C03", "Circular": "A", "Particular Name": "Product I", "Opening Balance": 5000, "Purchase Balance": 13000, "Digital Payment Payout": 6000, "Return": 500, "Payout": 7000, "R-Offer": 1300, "Sale": 12500, "Closing Balance": 5500, "Actual Closing Balance": 5400, "Diff": -100, "Remarks": "Adjustment" },
+                { "Operator": "RAJESH KUMAR", "Date": "2025-03-05", "Lapu ID": "L004", "Status": "Active", "System Use": "POS", "Code": "C04", "Circular": "C", "Particular Name": "Product J", "Opening Balance": 5500, "Purchase Balance": 14000, "Digital Payment Payout": 6500, "Return": 550, "Payout": 7500, "R-Offer": 1400, "Sale": 13500, "Closing Balance": 6000, "Actual Closing Balance": 6000, "Diff": 0, "Remarks": "" }
+            ];
+        }
+
+        // ========== LOGIN ==========
+        function performLogin() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            if (username === 'Admin' && password === '1234') {
+                document.getElementById('login-overlay').classList.add('hidden-overlay');
+                document.getElementById('dashboard-app').classList.remove('hidden');
+                lucide.createIcons();
+                populateMetricSelects();
+                loadSampleData();  // loads sample, populates month filter, triggers render
+                switchView('overview');
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+                setTimeout(() => document.getElementById('login-error').classList.add('hidden'), 3000);
+            }
+        }
+
+        // ========== LOGOUT ==========
+        function logout() {
+            document.getElementById('login-overlay').classList.remove('hidden-overlay');
+            document.getElementById('dashboard-app').classList.add('hidden');
+            // reset data for fresh start
+            allData = [];
+            filteredData = [];
+            document.getElementById('record-count').innerText = '0 records loaded';
+        }
+
+        // ========== THEME TOGGLE ==========
+        function toggleTheme() {
+            document.body.classList.toggle('dark');
+            const icon = document.querySelectorAll('[data-lucide="sun"], [data-lucide="moon"]');
+            icon.forEach(el => {
+                el.setAttribute('data-lucide', el.getAttribute('data-lucide') === 'sun' ? 'moon' : 'sun');
+            });
+            lucide.createIcons();
+            setTimeout(() => renderAll(), 100);
+        }
+
+        // ========== SIDEBAR ==========
+        function toggleSidebar() {
+            const s = document.getElementById('sidebar');
+            const b = document.getElementById('sidebar-brand');
+            const t = document.getElementById('nav-section-title');
+            const f = document.querySelectorAll('.sidebar-footer-text');
+            if(isSidebarCollapsed) {
+                s.classList.remove('sidebar-collapsed'); s.classList.add('sidebar-expanded');
+                b?.classList.remove('hidden'); t?.classList.remove('hidden'); f.forEach(el => el.classList.remove('hidden'));
+                document.getElementById('sidebar-toggle-btn').innerHTML = '<i data-lucide="chevrons-left" class="w-5 h-5"></i>';
+                isSidebarCollapsed = false;
+            } else {
+                s.classList.remove('sidebar-expanded'); s.classList.add('sidebar-collapsed');
+                b?.classList.add('hidden'); t?.classList.add('hidden'); f.forEach(el => el.classList.add('hidden'));
+                document.getElementById('sidebar-toggle-btn').innerHTML = '<i data-lucide="chevrons-right" class="w-5 h-5"></i>';
+                isSidebarCollapsed = true;
+            }
+            lucide.createIcons();
+        }
+
+        // ========== POPULATE MONTH FILTER ==========
+        function populateMonthFilter() {
+            const monthSet = new Set();
+            allData.forEach(r => {
+                if (r.Date) {
+                    const d = String(r.Date).substring(0,7); // YYYY-MM
+                    if (d) monthSet.add(d);
+                }
+            });
+            const months = Array.from(monthSet).sort();
+            const select = document.getElementById('month-filter');
+            select.innerHTML = '<option value="">All Months</option>';
+            months.forEach(m => {
+                // format for display (e.g., 2025-01 -> Jan 2025)
+                let display = m;
+                try {
+                    const [y, mon] = m.split('-');
+                    const date = new Date(y, mon-1);
+                    display = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+                } catch(e) {}
+                select.innerHTML += `<option value="${m}">${display}</option>`;
+            });
+        }
+
+        // ========== POPULATE OTHER FILTERS ==========
+        function populateFilterOptions() {
+            if (!allData.length) return;
+            const operators = [...new Set(allData.map(r => r.Operator).filter(Boolean))].sort();
+            const systems = [...new Set(allData.map(r => r["System Use"]).filter(Boolean))].sort();
+            const circulars = [...new Set(allData.map(r => r.Circular).filter(Boolean))].sort();
+            
+            document.getElementById('operator-filter').innerHTML = '<option value="">All Operators</option>' + operators.map(o => `<option value="${o}">${o}</option>`).join('');
+            document.getElementById('system-filter').innerHTML = '<option value="">All System Use</option>' + systems.map(s => `<option value="${s}">${s}</option>`).join('');
+            document.getElementById('circular-filter').innerHTML = '<option value="">All Circular</option>' + circulars.map(c => `<option value="${c}">${c}</option>`).join('');
+        }
+
+        // ========== APPLY FILTERS (Month + others) ==========
+        function applyFilters() {
+            const monthVal = document.getElementById('month-filter').value; // YYYY-MM
+            const opFilter = document.getElementById('operator-filter').value;
+            const sysFilter = document.getElementById('system-filter').value;
+            const cirFilter = document.getElementById('circular-filter').value;
+            
+            filteredData = allData.filter(row => {
+                if (monthVal && row.Date && row.Date.substring(0,7) !== monthVal) return false;
+                if (opFilter && row.Operator !== opFilter) return false;
+                if (sysFilter && row["System Use"] !== sysFilter) return false;
+                if (cirFilter && row.Circular !== cirFilter) return false;
+                return true;
+            });
+            
+            renderAll();
+        }
+
+        // ========== CLEAR ALL DATA ==========
+        function clearAllData() {
+            if (confirm('Clear all loaded data?')) {
+                allData = []; filteredData = [];
+                document.getElementById('operator-filter').innerHTML = '<option value="">All Operators</option>';
+                document.getElementById('system-filter').innerHTML = '<option value="">All System Use</option>';
+                document.getElementById('circular-filter').innerHTML = '<option value="">All Circular</option>';
+                document.getElementById('month-filter').innerHTML = '<option value="">All Months</option>';
+                renderAll();
+                document.getElementById('record-count').innerHTML = '0 records loaded';
+            }
+        }
+
+        // ========== FILE UPLOAD ==========
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    if (jsonData.length < 2) { alert('File has no data rows'); return; }
+                    const headers = jsonData[0].map(h => String(h).trim());
+                    const rows = jsonData.slice(1);
+                    const records = rows.map(row => {
+                        let obj = {};
+                        headers.forEach((h, idx) => { obj[h] = row[idx] !== undefined ? row[idx] : ''; });
+                        return obj;
+                    }).filter(row => Object.values(row).some(v => v !== ''));
+                    
+                    allData = records.map(r => {
+                        let clean = { ...r };
+                        Object.keys(clean).forEach(key => {
+                            if (typeof clean[key] === 'string' && clean[key].trim() !== '' && !isNaN(clean[key])) {
+                                clean[key] = parseFloat(clean[key]) || 0;
+                            }
+                        });
+                        return clean;
+                    });
+                    if (allData.length === 0) { alert('No valid data found'); return; }
+                    
+                    filteredData = [...allData];
+                    populateMonthFilter();          // <-- new
+                    populateFilterOptions();
+                    applyFilters();                 // this calls renderAll
+                    document.getElementById('file-upload').value = '';
+                    alert(`Loaded ${allData.length} records`);
+                } catch (error) {
+                    console.error(error); alert('Error reading file');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // ========== KPI ==========
+        function computeKPISums() {
+            const sums = {};
+            kpiMetrics.forEach(m => sums[m] = filteredData.reduce((acc, row) => acc + (parseFloat(row[m]) || 0), 0));
+            return sums;
+        }
+        function renderKPICards() {
+            const sums = computeKPISums();
+            const cont = document.getElementById('kpi-grid');
+            if (!cont) return;
+            cont.innerHTML = '';
+            const colors = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ea580c', '#0891b2', '#4f46e5'];
+            kpiMetrics.forEach((m, index) => { 
+                const val = sums[m] || 0;
+                const f = val.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+                cont.innerHTML += `<div class="card rounded-2xl p-3 md:p-4 flex flex-col" style="border-left: 4px solid ${colors[index]}">
+                        <div class="flex items-start justify-between w-full">
+                            <span class="text-tertiary text-[10px] md:text-xs uppercase truncate" title="${m}">${m}</span>
+                            <div class="w-7 h-7 md:w-8 md:h-8 rounded-xl flex items-center justify-center text-white shrink-0" style="background: ${colors[index]}"><i data-lucide="trending-up" class="w-3.5 h-3.5 md:w-4 md:h-4"></i></div>
+                        </div>
+                        <div class="kpi-value font-bold mt-1 w-full text-left" style="color: ${colors[index]}" title="${f}">${f}</div>
+                    </div>`;
+            });
+            lucide.createIcons();
+        }
+
+        // ========== GROUPING ==========
+        function getGroupedData(groupBy) {
+            const groups = {};
+            filteredData.forEach(r => {
+                const key = r[groupBy] || "Unknown";
+                if (!groups[key]) {
+                    groups[key] = {};
+                    numericMetrics.forEach(m => groups[key][m] = 0);
+                }
+                numericMetrics.forEach(m => groups[key][m] += parseFloat(r[m]) || 0);
+            });
+            return groups;
+        }
+        function renderSummaryTable(id, groupBy) {
+            const groups = getGroupedData(groupBy);
+            const keys = Object.keys(groups).sort();
+            let html = `<thead><tr class="bg-tertiary"><th class="text-left py-3 px-3 font-semibold text-xs text-primary">${groupBy}</th>${kpiMetrics.map(m => `<th class="text-right py-3 px-3 font-semibold text-xs text-primary">${m}</th>`).join('')}</tr></thead><tbody>`;
+            keys.forEach(key => {
+                html += `<tr class="border-b border-border hover:bg-tertiary hover:bg-opacity-50"><td class="py-2.5 px-3 font-medium text-accent text-xs md:text-sm">${key}</td>`;
+                kpiMetrics.forEach(m => html += `<td class="py-2.5 px-3 text-right font-mono text-xs md:text-sm">${(groups[key][m] || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>`);
+                html += `</tr>`;
+            });
+            const table = document.getElementById(id);
+            if (table) table.innerHTML = html + `</tbody>`;
+        }
+
+        // ========== CHART FUNCTIONS (unchanged but ensure they use filteredData) ==========
+        function updateOperatorPie() { /* identical to original, omitted for brevity, but copy full logic here */ 
+            const m = document.getElementById('operator-metric-select')?.value || "Sale";
+            const groups = getGroupedData('Operator');
+            const labels = Object.keys(groups);
+            const data = labels.map(l => groups[l][m] || 0);
+            if (operatorPieChart) operatorPieChart.destroy();
+            const ctx = document.getElementById('operator-pie-chart');
+            if (!ctx) return;
+            const colors = getChartColors();
+            operatorPieChart = new Chart(ctx, {
+                type: 'pie', data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, labels.length), borderColor: 'transparent', borderWidth: 2, hoverOffset: 15 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: getComputedStyle(document.body).getPropertyValue('--text-primary').trim(), font: { size: 11 } } }, tooltip: { backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg-secondary').trim(), titleColor: getComputedStyle(document.body).getPropertyValue('--text-primary').trim(), bodyColor: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(), borderColor: getComputedStyle(document.body).getPropertyValue('--border-color').trim(), borderWidth: 1, callbacks: { label: (ctx) => { let val = ctx.raw || 0; let total = ctx.dataset.data.reduce((a,b)=>a+b,0); let p = ((val/total)*100).toFixed(1); return `${ctx.label}: ${val.toLocaleString('en-IN')} (${p}%)`; } } } } }
+            });
+        }
+        function updateSystemBar() {
+            const m = document.getElementById('system-metric-select')?.value || "Sale";
+            const groups = getGroupedData('System Use');
+            const labels = Object.keys(groups);
+            const data = labels.map(l => groups[l][m] || 0);
+            if (systemBarChart) systemBarChart.destroy();
+            const ctx = document.getElementById('system-bar-chart');
+            if (!ctx) return;
+            const colors = getChartColors();
+            systemBarChart = new Chart(ctx, {
+                type: 'bar', data: { labels: labels, datasets: [{ label: m, data: data, backgroundColor: colors[0], borderRadius: 8, barPercentage: 0.7 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg-secondary').trim(), titleColor: getComputedStyle(document.body).getPropertyValue('--text-primary').trim(), bodyColor: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(), borderColor: getComputedStyle(document.body).getPropertyValue('--border-color').trim(), borderWidth: 1, callbacks: { label: (ctx) => `${m}: ${ctx.raw.toLocaleString('en-IN')}` } } }, scales: { y: { grid: { color: getComputedStyle(document.body).getPropertyValue('--border-color').trim() }, ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(), callback: v=>v.toLocaleString('en-IN') } }, x: { grid: { display: false }, ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() } } } }
+            });
+        }
+        function updateCircularDonut() {
+            const m = document.getElementById('circular-metric-select')?.value || "Sale";
+            const groups = getGroupedData('Circular');
+            const labels = Object.keys(groups);
+            const data = labels.map(l => groups[l][m] || 0);
+            if (circularDonutChart) circularDonutChart.destroy();
+            const ctx = document.getElementById('circular-donut-chart');
+            if (!ctx) return;
+            const colors = getChartColors();
+            circularDonutChart = new Chart(ctx, {
+                type: 'doughnut', data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, labels.length), borderColor: 'transparent', borderWidth: 2, hoverOffset: 15 }] },
+                options: { cutout: '65%', responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: getComputedStyle(document.body).getPropertyValue('--text-primary').trim(), font: { size: 11 } } }, tooltip: { backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg-secondary').trim(), titleColor: getComputedStyle(document.body).getPropertyValue('--text-primary').trim(), bodyColor: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(), borderColor: getComputedStyle(document.body).getPropertyValue('--border-color').trim(), borderWidth: 1, callbacks: { label: (ctx) => { let val = ctx.raw||0; let total = ctx.dataset.data.reduce((a,b)=>a+b,0); let p = ((val/total)*100).toFixed(1); return `${ctx.label}: ${val.toLocaleString('en-IN')} (${p}%)`; } } } } }
+            });
+        }
+        function updateTimeSeries(id, isTrends = false) {
+            const groups = {};
+            filteredData.forEach(r => { if (r.Date) { const d = String(r.Date).substring(0,10); groups[d] = (groups[d] || 0) + (parseFloat(r.Sale) || 0); } });
+            const sortedDates = Object.keys(groups).sort();
+            const values = sortedDates.map(d => groups[d]);
+            if (id === 'time-series-chart' && timeChart) timeChart.destroy();
+            if (id === 'trends-time-chart' && trendsTimeChart) trendsTimeChart.destroy();
+            const ctx = document.getElementById(id);
+            if (!ctx) return;
+            const colors = getChartColors();
+            const newChart = new Chart(ctx, {
+                type: 'line', data: { labels: sortedDates, datasets: [{ label: 'Total Sale', data: values, borderColor: colors[0], backgroundColor: 'rgba(37,99,235,0.1)', tension: 0.4, borderWidth: 3, pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: colors[0], pointBorderColor: 'white', pointBorderWidth: 2, fill: true }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg-secondary').trim(), titleColor: getComputedStyle(document.body).getPropertyValue('--text-primary').trim(), bodyColor: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(), borderColor: getComputedStyle(document.body).getPropertyValue('--border-color').trim(), borderWidth: 1, callbacks: { label: (ctx) => `Sale: ${ctx.raw.toLocaleString('en-IN')}` } } }, scales: { y: { grid: { color: getComputedStyle(document.body).getPropertyValue('--border-color').trim() }, ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(), callback: v=>v.toLocaleString('en-IN') } }, x: { grid: { display: false }, ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(), maxRotation: 45, minRotation: 45, font: { size: 10 } } } } }
+            });
+            if (id === 'time-series-chart') timeChart = newChart; else if (id === 'trends-time-chart') trendsTimeChart = newChart;
+        }
+        function updateComparisonChart(id, isTrends = false) {
+            const groups = {};
+            filteredData.forEach(r => { const p = r["Particular Name"] || "Unknown"; if (!groups[p]) groups[p] = { sale:0, roffer:0 }; groups[p].sale += parseFloat(r.Sale)||0; groups[p].roffer += parseFloat(r["R-Offer"])||0; });
+            const labels = Object.keys(groups);
+            const saleData = labels.map(l => groups[l].sale);
+            const rofferData = labels.map(l => groups[l].roffer);
+            if (id === 'comparison-chart' && comparisonChart) comparisonChart.destroy();
+            if (id === 'trends-comparison-chart' && trendsComparisonChart) trendsComparisonChart.destroy();
+            const ctx = document.getElementById(id);
+            if (!ctx) return;
+            const colors = getChartColors();
+            const newChart = new Chart(ctx, {
+                type: 'line', data: { labels: labels, datasets: [{ label: 'Sale', data: saleData, borderColor: colors[0], backgroundColor: 'rgba(37,99,235,0.1)', tension: 0.4, borderWidth: 3, pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: colors[0], pointBorderColor: 'white', pointBorderWidth: 2, fill: false }, { label: 'R-Offer', data: rofferData, borderColor: colors[1], backgroundColor: 'rgba(22,163,74,0.1)', tension: 0.4, borderWidth: 3, pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: colors[1], pointBorderColor: 'white', pointBorderWidth: 2, fill: false }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: getComputedStyle(document.body).getPropertyValue('--text-primary').trim(), font: { size:11 }, usePointStyle: true } }, tooltip: { backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg-secondary').trim(), titleColor: getComputedStyle(document.body).getPropertyValue('--text-primary').trim(), bodyColor: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(), borderColor: getComputedStyle(document.body).getPropertyValue('--border-color').trim(), borderWidth:1, callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toLocaleString('en-IN')}` } } }, scales: { y: { grid: { color: getComputedStyle(document.body).getPropertyValue('--border-color').trim() }, ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(), callback: v=>v.toLocaleString('en-IN') } }, x: { grid: { display: false }, ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(), maxRotation:45, minRotation:45, font: { size:10 } } } } }
+            });
+            if (id === 'comparison-chart') comparisonChart = newChart; else if (id === 'trends-comparison-chart') trendsComparisonChart = newChart;
+        }
+
+        // ========== DATA TABLE ==========
+        function renderDataTable() {
+            const searchTerm = document.getElementById('table-search')?.value.toLowerCase() || '';
+            let data = filteredData.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(searchTerm)));
+            if (currentSort.key) {
+                data.sort((a,b) => { let va = a[currentSort.key], vb = b[currentSort.key]; let na = parseFloat(va), nb = parseFloat(vb); if (!isNaN(na) && !isNaN(nb)) return currentSort.dir === 'asc' ? na - nb : nb - na; return currentSort.dir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va)); });
+            }
+            let header = document.getElementById('table-header');
+            if (!header) return;
+            header.innerHTML = '';
+            const columns = allData.length > 0 ? Object.keys(allData[0]) : allColumns;
+            columns.forEach(col => { let th = document.createElement('th'); th.className = 'py-3 px-3 text-left font-medium text-xs text-primary whitespace-nowrap cursor-pointer hover:text-accent'; th.textContent = col; th.onclick = () => { if (currentSort.key === col) currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc'; else { currentSort.key = col; currentSort.dir = 'asc'; } renderDataTable(); }; header.appendChild(th); });
+            let tbody = document.getElementById('data-tbody');
+            tbody.innerHTML = '';
+            data.slice(0,150).forEach(r => { let tr = document.createElement('tr'); tr.className = 'hover:bg-tertiary hover:bg-opacity-50 border-b border-border'; columns.forEach(col => { let td = document.createElement('td'); td.className = 'py-2.5 px-3 whitespace-nowrap text-xs md:text-sm text-primary'; let val = r[col]; if (!isNaN(parseFloat(val)) && isFinite(val)) { td.classList.add('text-right', 'font-mono'); td.textContent = parseFloat(val).toLocaleString('en-IN', { maximumFractionDigits: 0 }); } else td.textContent = val || '–'; tr.appendChild(td); }); tbody.appendChild(tr); });
+        }
+
+        // ========== METRIC SELECTS ==========
+        function populateMetricSelects() {
+            ['operator-metric-select', 'system-metric-select', 'circular-metric-select'].forEach(id => {
+                let sel = document.getElementById(id);
+                if (sel) {
+                    sel.innerHTML = '';
+                    kpiMetrics.forEach(m => { let opt = document.createElement('option'); opt.value = m; opt.textContent = m; if (m === "Sale") opt.selected = true; sel.appendChild(opt); });
+                }
+            });
+        }
+
+        // ========== RENDER ALL ==========
+        function renderAll() {
+            if (!filteredData.length && allData.length) filteredData = [...allData];
+            renderKPICards();
+            renderSummaryTable('operator-summary-table', 'Operator');
+            renderSummaryTable('system-summary-table', 'System Use');
+            renderSummaryTable('circular-summary-table', 'Circular');
+            setTimeout(() => {
+                updateOperatorPie(); updateSystemBar(); updateCircularDonut(); updateTimeSeries('time-series-chart'); updateComparisonChart('comparison-chart'); updateTimeSeries('trends-time-chart'); updateComparisonChart('trends-comparison-chart');
+            }, 50);
+            renderDataTable();
+            document.getElementById('record-count') && (document.getElementById('record-count').innerHTML = filteredData.length + ' records loaded');
+            document.getElementById('last-updated').innerText = new Date().toLocaleTimeString('en-IN');
+            lucide.createIcons();
+        }
+
+        // ========== VIEW SWITCHING ==========
+        function switchView(view) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(view + '-view')?.classList.add('active');
+            document.querySelectorAll('[id^="nav-"]').forEach(n => n.classList.remove('bg-tertiary', 'text-accent', 'font-semibold'));
+            let nav = document.getElementById('nav-' + view);
+            if (nav) nav.classList.add('bg-tertiary', 'text-accent', 'font-semibold');
+            currentView = view;
+            document.getElementById('page-title').innerText = view.charAt(0).toUpperCase() + view.slice(1).replace('-', ' ');
+            setTimeout(() => {
+                if (view === 'operator') updateOperatorPie();
+                if (view === 'system') updateSystemBar();
+                if (view === 'circular') updateCircularDonut();
+                if (view === 'trends') { updateTimeSeries('trends-time-chart', true); updateComparisonChart('trends-comparison-chart', true); }
+                if (view === 'overview') { updateTimeSeries('time-series-chart'); updateComparisonChart('comparison-chart'); }
+                if (view === 'table') renderDataTable();
+            }, 100);
+        }
+
+        // ========== UTILITIES ==========
+        function toggleFullscreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else if (document.exitFullscreen) document.exitFullscreen(); }
+        function refreshDashboard() { applyFilters(); }
+        function triggerFileUpload() { document.getElementById('file-upload').click(); }
+        function loadSampleData() {
+            allData = generateSampleData();
+            filteredData = [...allData];
+            populateMonthFilter();            // <-- new
+            populateFilterOptions();
+            applyFilters();                   // triggers renderAll
+            alert('Sample data loaded. Use month filter.');
+        }
+
+        window.onload = function() { lucide.createIcons(); };
+    </script>
+</body>
+</html>

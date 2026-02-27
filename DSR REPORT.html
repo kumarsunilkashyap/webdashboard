@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>📊 Smart Filters · Invoice Analytics</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- Fontawesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
+        
+        :root {
+            --bg-color: #f3f6fc;
+            --card-bg: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #334155;
+            --text-tertiary: #64748b;
+            --border-light: #eef2f6;
+            --border-medium: #e2e8f0;
+            --accent-blue: #2563eb;
+            --accent-hover: #1d4ed8;
+        }
+        
+        body { 
+            background: var(--bg-color); 
+            padding: 16px; 
+            transition: all 0.3s; 
+            min-height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        .dashboard { 
+            max-width: 1600px; 
+            margin: 0 auto; 
+            flex: 1; 
+            width: 100%;
+        }
+        
+        /* Responsive Header */
+        .header { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            flex-wrap: wrap; 
+            gap: clamp(12px, 2vw, 16px); 
+            margin-bottom: clamp(16px, 3vw, 20px); 
+        }
+        
+        .title { 
+            font-weight: 600; 
+            font-size: clamp(1.4rem, 4vw, 1.8rem); 
+            color: var(--text-primary); 
+            display: flex; 
+            align-items: center; 
+            gap: clamp(8px, 1.5vw, 12px); 
+        }
+        
+        .action-buttons { 
+            display: flex; 
+            gap: clamp(8px, 1.5vw, 12px); 
+            flex-wrap: wrap; 
+        }
+        
+        .btn { 
+            padding: clamp(8px, 2vw, 10px) clamp(16px, 3vw, 22px); 
+            border-radius: 40px; 
+            border: none; 
+            font-weight: 500; 
+            font-size: clamp(0.85rem, 2.5vw, 0.95rem);
+            cursor: pointer; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: clamp(6px, 1vw, 8px); 
+            transition: 0.2s; 
+            background: white; 
+            border: 1px solid var(--border-medium); 
+            color: var(--text-primary); 
+            white-space: nowrap;
+        }
+        
+        .btn-primary { 
+            background: var(--accent-blue); 
+            color: white; 
+            border: none; 
+        }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn:hover { background: #f8fafc; }
+        
+        /* Responsive Filters */
+        .filters { 
+            background: var(--card-bg); 
+            border-radius: clamp(20px, 3vw, 24px); 
+            padding: clamp(16px, 3vw, 18px) clamp(20px, 4vw, 24px); 
+            margin-bottom: clamp(20px, 4vw, 28px); 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02); 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: clamp(16px, 3vw, 24px); 
+            align-items: center; 
+            border: 1px solid var(--border-light); 
+        }
+        
+        .filter-group { 
+            display: flex; 
+            align-items: center; 
+            gap: clamp(6px, 1.5vw, 10px); 
+            flex-wrap: wrap;
+        }
+        
+        .filter-group label { 
+            font-weight: 500; 
+            color: var(--text-secondary); 
+            font-size: clamp(0.85rem, 2.5vw, 0.95rem);
+            white-space: nowrap;
+        }
+        
+        select, input { 
+            padding: clamp(8px, 1.5vw, 10px) clamp(12px, 2vw, 16px); 
+            border-radius: 40px; 
+            border: 1px solid var(--border-medium); 
+            background: white; 
+            font-size: clamp(0.85rem, 2.5vw, 0.95rem); 
+            min-width: clamp(150px, 25vw, 180px); 
+            max-width: 100%;
+        }
+        
+        /* Responsive KPI Grid */
+        .kpi-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); 
+            gap: clamp(12px, 2vw, 18px); 
+            margin-bottom: clamp(20px, 4vw, 28px); 
+        }
+        
+        .kpi-card { 
+            background: var(--card-bg); 
+            border-radius: clamp(18px, 3vw, 24px); 
+            padding: clamp(16px, 3vw, 20px) clamp(14px, 2.5vw, 18px); 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.02); 
+            border: 1px solid var(--border-light); 
+        }
+        
+        .kpi-label { 
+            color: var(--text-tertiary); 
+            font-size: clamp(0.8rem, 2vw, 0.9rem); 
+            margin-bottom: clamp(6px, 1vw, 8px); 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+        }
+        
+        .kpi-value { 
+            font-size: clamp(1.5rem, 5vw, 2.1rem); 
+            font-weight: 600; 
+            color: var(--text-primary); 
+            line-height: 1.2;
+            word-break: break-word;
+        }
+        
+        /* Chart Cards */
+        .chart-card { 
+            background: var(--card-bg); 
+            border-radius: clamp(18px, 3vw, 24px); 
+            padding: clamp(14px, 2.5vw, 16px) clamp(14px, 2.5vw, 18px); 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.02); 
+            border: 1px solid var(--border-light); 
+            flex: 1 1 300px;
+            min-width: min(100%, 350px);
+        }
+        
+        .chart-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: clamp(10px, 2vw, 12px); 
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .chart-title { 
+            font-weight: 600; 
+            color: var(--text-primary); 
+            display: flex; 
+            align-items: center; 
+            gap: clamp(6px, 1vw, 8px); 
+            font-size: clamp(0.95rem, 2.5vw, 1.1rem); 
+        }
+        
+        .expand-btn { 
+            background: none; 
+            border: none; 
+            color: var(--text-tertiary); 
+            cursor: pointer; 
+            padding: clamp(4px, 1vw, 6px) clamp(8px, 1.5vw, 10px); 
+            border-radius: 30px; 
+            font-size: clamp(0.8rem, 2vw, 0.9rem); 
+            white-space: nowrap;
+        }
+        
+        .expand-btn:hover { background: #f1f5f9; color: var(--accent-blue); }
+        
+        .chart-container { 
+            position: relative; 
+            height: clamp(200px, 30vh, 250px); 
+            width: 100%; 
+        }
+        
+        /* Fullscreen enhancements */
+        .full-screen { 
+            max-width: none !important; 
+            width: 100vw !important; 
+            height: 100vh !important; 
+            margin: 0 !important; 
+            padding: 30px 40px !important; 
+            overflow-y: auto !important; 
+            background: var(--bg-color); 
+            scrollbar-width: thin; 
+        }
+        
+        .full-screen .chart-container { height: min(400px, 45vh) !important; }
+        .full-screen .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+        
+        /* Modal */
+        .modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.75); 
+            z-index: 1000; 
+            justify-content: center; 
+            align-items: center; 
+            backdrop-filter: blur(8px); 
+            padding: 16px;
+        }
+        
+        .modal-content { 
+            background: white; 
+            border-radius: clamp(24px, 4vw, 32px); 
+            width: 95vw; 
+            max-width: 1400px;
+            height: 90vh; 
+            padding: clamp(20px, 3vw, 24px); 
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        .modal-body { 
+            flex: 1; 
+            min-height: 0; 
+            position: relative; 
+            overflow: auto; 
+        }
+        
+        /* Tables */
+        .table-wrapper { 
+            overflow-x: auto; 
+            border-radius: 18px; 
+            background: white; 
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: clamp(0.8rem, 2vw, 0.9rem); 
+            min-width: 600px;
+        }
+        
+        th { 
+            text-align: left; 
+            padding: clamp(12px, 2vw, 16px) clamp(10px, 1.5vw, 12px); 
+            background: #f8fafc; 
+            color: var(--text-primary); 
+            font-weight: 600; 
+        }
+        
+        td { 
+            padding: clamp(10px, 1.5vw, 14px) clamp(10px, 1.5vw, 12px); 
+            border-bottom: 1px solid var(--border-light); 
+            color: var(--text-secondary); 
+        }
+        
+        .badge { 
+            background: #e6f0ff; 
+            color: #1e4fd9; 
+            padding: 4px 12px; 
+            border-radius: 40px; 
+            font-weight: 500; 
+            font-size: 0.8rem; 
+            display: inline-block;
+            white-space: nowrap;
+        }
+        
+        .reorder { background: #fee9e7; color: #b34033; }
+        .slow { background: #fff3d8; color: #b55f0a; }
+        
+        footer { 
+            text-align: center; 
+            padding: 24px 0 16px; 
+            color: var(--text-tertiary); 
+            font-size: 0.9rem; 
+            border-top: 1px solid var(--border-medium); 
+            margin-top: auto; 
+        }
+        
+        /* Helper */
+        .info-text {
+            margin: -15px 0 20px 20px;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard" id="dashboardContainer">
+    <div class="header">
+        <div class="title"><i class="fas fa-chart-pie" style="color:#2563eb;"></i> Invoice Analytics · Dependent Filters</div>
+        <div class="action-buttons">
+            <button class="btn" id="fullScreenBtn"><i class="fas fa-expand"></i> <span class="btn-text">Full Screen</span></button>
+            <button class="btn" id="exportImageBtn"><i class="fas fa-image"></i> <span class="btn-text">PNG</span></button>
+            <button class="btn" id="clearDataBtn"><i class="fas fa-trash-alt"></i> <span class="btn-text">Clear</span></button>
+            <button class="btn" id="exportDataBtn"><i class="fas fa-download"></i> <span class="btn-text">Excel</span></button>
+            <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none;">
+            <button class="btn btn-primary" onclick="document.getElementById('excel-upload').click()"><i class="fas fa-upload"></i> <span class="btn-text">Upload</span></button>
+        </div>
+    </div>
+
+    <div class="filters" id="filter-section">
+        <div class="filter-group"><label><i class="far fa-calendar-alt"></i> Period:</label>
+            <select id="period-filter">
+                <option value="all">All dates</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+            </select>
+        </div>
+        <div class="filter-group"><label><i class="fas fa-user"></i> Party:</label>
+            <select id="customer-filter"><option value="all">All customers</option></select>
+        </div>
+        <div class="filter-group"><label><i class="fas fa-box"></i> Item:</label>
+            <select id="product-filter"><option value="all">All products</option></select>
+        </div>
+        <div class="filter-group"><label><i class="fas fa-code"></i> HSN/SAC:</label>
+            <select id="hsn-filter"><option value="all">All codes</option></select>
+        </div>
+    </div>
+
+    <div class="info-text">
+        <i class="fas fa-filter"></i> Select a party → see only items/HSN sold to that party
+    </div>
+
+    <div class="kpi-grid" id="kpi-row"></div>
+
+    <!-- Row 1 -->
+    <div style="display:flex; flex-wrap:wrap; gap:22px; margin-bottom:28px;">
+        <div class="chart-card" id="chart-sales">
+            <div class="chart-header">
+                <div class="chart-title"><i class="fas fa-chart-line"></i> Sales Trend</div>
+                <button class="expand-btn" onclick="openModal('salesTrendChart', 'Sales Trend')"><i class="fas fa-expand"></i> Expand</button>
+            </div>
+            <div class="chart-container"><canvas id="salesTrendChart"></canvas></div>
+        </div>
+        <div class="chart-card" id="chart-products">
+            <div class="chart-header">
+                <div class="chart-title"><i class="fas fa-fire"></i> Best-selling Products</div>
+                <button class="expand-btn" onclick="openModal('topProductsChart', 'Top Products')"><i class="fas fa-expand"></i> Expand</button>
+            </div>
+            <div class="chart-container"><canvas id="topProductsChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Row 2 -->
+    <div style="display:flex; flex-wrap:wrap; gap:22px; margin-bottom:28px;">
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title"><i class="fas fa-chart-pie"></i> Revenue by HSN/SAC</div>
+                <button class="expand-btn" onclick="openModal('hsnPieChart', 'HSN Revenue')"><i class="fas fa-expand"></i> Expand</button>
+            </div>
+            <div class="chart-container"><canvas id="hsnPieChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title"><i class="fas fa-chart-bar"></i> Avg. Discount %</div>
+                <button class="expand-btn" onclick="openModal('discountBarChart', 'Discount by Product')"><i class="fas fa-expand"></i> Expand</button>
+            </div>
+            <div class="chart-container"><canvas id="discountBarChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Row 3 -->
+    <div style="display:flex; flex-wrap:wrap; gap:22px; margin-bottom:28px;">
+        <div class="chart-card" style="flex:2;">
+            <div class="chart-header">
+                <div class="chart-title"><i class="fas fa-th"></i> Inventory Heatmap</div>
+                <button class="expand-btn" onclick="openModal('inventoryHeatTable', 'Inventory Status')"><i class="fas fa-expand"></i> Expand</button>
+            </div>
+            <div class="table-wrapper" id="inventory-heat-table" style="max-height:250px; overflow-y:auto;"></div>
+        </div>
+        <div class="chart-card" style="flex:1.5;">
+            <div class="chart-header">
+                <div class="chart-title"><i class="fas fa-tag"></i> Top Customers</div>
+                <button class="expand-btn" onclick="openModal('topCustomersTable', 'Top Customers')"><i class="fas fa-expand"></i> Expand</button>
+            </div>
+            <div class="table-wrapper" style="max-height:250px;"><table id="top-customers-table">
+                <thead><tr><th>Customer</th><th>Revenue</th><th>Invoices</th></tr></thead>
+                <tbody></tbody>
+            </table></div>
+        </div>
+    </div>
+
+    <!-- Invoices Table -->
+    <div class="chart-card" id="chart-invoices">
+        <div class="chart-header">
+            <div class="chart-title"><i class="fas fa-receipt"></i> Invoices · Drill Down</div>
+            <button class="expand-btn" onclick="openModal('invoiceTable', 'Invoices')"><i class="fas fa-expand"></i> Expand</button>
+        </div>
+        <div class="table-wrapper" id="invoice-drill-table" style="max-height:320px;">
+            <table>
+                <thead><tr><th>Invoice No.</th><th>Date</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Disc%</th></tr></thead>
+                <tbody id="invoice-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <p>Invoice Analytics Dashboard Generated By Sunil Kumar Kashyap</p>
+</footer>
+
+<!-- Modal -->
+<div id="chartModal" class="modal" onclick="if(event.target===this) closeModal()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle" style="font-size: clamp(1.2rem, 3vw, 1.5rem)">Chart View</h2>
+            <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i> Close</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<script>
+// ───────────────────────────────────────────────────────────────
+let rawData = [];
+let filteredData = [];     // after customer/product/hsn filter
+let displayData = [];      // after period grouping (used for charts & KPIs)
+let invData = [];          // inventory mock
+
+let charts = {};
+
+const customerFilter = document.getElementById('customer-filter');
+const productFilter  = document.getElementById('product-filter');
+const hsnFilter      = document.getElementById('hsn-filter');
+const periodFilter   = document.getElementById('period-filter');
+
+// ─── Mock Data (enhanced with more items) ─────────────────────
+function generateMockData() {
+    const customers = ['Acme Corp','Beta Ltd','Gamma Inc','Delta LLC','Epsilon SA','Zeta GmbH','Theta Corp','Sigma Stores','Omega Traders'];
+    const products  = ['Laptop','Mouse','Keyboard','Monitor','Desk chair','USB cable','Dock station','Headset','Webcam','Speaker','HDMI Cable','Power Adapter'];
+    const hsns = ['84713000','847160','84715000','852852','940130','851762','847330','851830','852580','851830','854442','850440'];
+
+    const rows = [];
+    const start = new Date('2025-01-01');
+    const custProductMap = {
+        'Acme Corp': ['Laptop','Monitor','Dock station','Headset'],
+        'Beta Ltd': ['Mouse','Keyboard','USB cable'],
+        'Gamma Inc': ['Laptop','Monitor','Speaker'],
+        'Delta LLC': ['Desk chair','Webcam'],
+        'Epsilon SA': ['Headset','Speaker','HDMI Cable'],
+        'Zeta GmbH': ['Power Adapter','USB cable','Dock station'],
+        'Theta Corp': ['Laptop','Keyboard','Monitor']
+    };
+
+    for (let i = 0; i < 320; i++) {
+        const date = new Date(start);
+        date.setDate(start.getDate() + Math.floor(Math.random()*180));
+        const cust = customers[Math.floor(Math.random()*customers.length)];
+        let prod = products[Math.floor(Math.random()*products.length)];
+        if (Math.random() < 0.75 && custProductMap[cust]) {
+            prod = custProductMap[cust][Math.floor(Math.random()*custProductMap[cust].length)];
+        }
+        let hsn = '84713000';
+        if (prod.includes('Mouse')) hsn = '847160';
+        if (prod.includes('Keyboard')) hsn = '84715000';
+        if (prod.includes('Monitor')) hsn = '852852';
+        if (prod.includes('chair')) hsn = '940130';
+        if (prod.includes('USB') || prod.includes('HDMI')) hsn = '851762';
+        if (prod.includes('Dock')) hsn = '847330';
+        if (prod.includes('Headset') || prod.includes('Speaker')) hsn = '851830';
+        if (prod.includes('Webcam')) hsn = '852580';
+        if (prod.includes('Adapter')) hsn = '850440';
+
+        const qty  = Math.floor(Math.random()*12) + 1;
+        const rate = prod.includes('Laptop') ? 92000 :
+                     prod.includes('Monitor') ? 18500 :
+                     prod.includes('Mouse') ? 1200 :
+                     prod.includes('Keyboard') ? 3200 :
+                     prod.includes('chair') ? 14500 :
+                     (prod.includes('USB')||prod.includes('HDMI')) ? 450 :
+                     prod.includes('Dock') ? 9800 :
+                     prod.includes('Headset') ? 4800 :
+                     prod.includes('Webcam') ? 6200 :
+                     prod.includes('Speaker') ? 7500 :
+                     prod.includes('Adapter') ? 1800 : 6500;
+
+        const disc = Math.random()*22;
+        const amt  = qty * rate * (1 - disc/100);
+
+        rows.push({
+            Dated: date.toISOString().split('T')[0],
+            'Consignee (Ship to)': cust,
+            'Invoice No.': `INV-${10000 + i}`,
+            'Description of Goods': prod,
+            'HSN/SAC': hsn,
+            Quantity: qty,
+            Rate: rate,
+            'Disc. %': Math.round(disc*10)/10,
+            Amount: Math.round(amt)
+        });
+    }
+    return rows;
+}
+
+// ─── Excel loading ────────────────────────────────────────────
+function loadExcelData(wb) {
+    const sheetName = wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const json = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    const headers = json[0].map(h => String(h).trim().toLowerCase());
+    const data = [];
+    for (let i = 1; i < json.length; i++) {
+        const row = json[i];
+        if (!row[0]) continue;
+        const obj = {};
+        headers.forEach((h, idx) => {
+            let val = row[idx] ?? '';
+            if (h.includes('date') && val) {
+                if (typeof val === 'number') val = XLSX.SSF.format('yyyy-mm-dd', val);
+                else if (val instanceof Date) val = val.toISOString().split('T')[0];
+            }
+            obj[h] = val;
+        });
+        obj.Dated = obj.dated || obj.date || obj.invoice_date || '';
+        obj['Consignee (Ship to)'] = obj['consignee (ship to)'] || obj.customer || obj.party || '';
+        obj['Invoice No.'] = obj['invoice no.'] || obj.invno || obj['inv no'] || '';
+        obj['Description of Goods'] = obj['description of goods'] || obj.item || obj.product || '';
+        obj['HSN/SAC'] = obj['hsn/sac'] || obj.hsn || '';
+        obj.Quantity   = parseFloat(obj.quantity || obj.qty || 0) || 0;
+        obj.Rate       = parseFloat(obj.rate || 0) || 0;
+        obj['Disc. %']  = parseFloat(obj['disc. %'] || obj.discount || 0) || 0;
+        obj.Amount     = parseFloat(obj.amount || obj.total || 0) || 0;
+
+        if (obj.Dated && obj['Consignee (Ship to)'] && obj.Amount > 0) {
+            data.push(obj);
+        }
+    }
+    return data;
+}
+
+// ─── Inventory (mock) ────────────────────────────────────────
+function buildInventory(data) {
+    const map = {};
+    data.forEach(r => {
+        const item = r['Description of Goods'];
+        if (!map[item]) {
+            map[item] = { item, sold: 0, stock: Math.floor(Math.random()*120 + 30), reorder: Math.random()<0.25 };
+        }
+        map[item].sold += r.Quantity || 0;
+    });
+    return Object.values(map).map(i => ({
+        ...i,
+        available: i.stock - i.sold,
+        status: i.available < 10 ? 'reorder' : i.available < 30 ? 'slow' : 'ok'
+    })).sort((a,b)=>b.sold - a.sold);
+}
+
+// ─── Dependent Filters ────────────────────────────────────────
+function updateDependentFilters() {
+    const cust = customerFilter.value;
+    const prod = productFilter.value;
+    const hsn  = hsnFilter.value;
+
+    // Customers (always full list)
+    const custs = [...new Set(rawData.map(r=>r['Consignee (Ship to)']))].sort();
+    customerFilter.innerHTML = '<option value="all">All customers</option>' + 
+        custs.map(c=>`<option value="${c}" ${c===cust?'selected':''}>${c}</option>`).join('');
+
+    // Products — filtered by customer + hsn
+    let prods = rawData;
+    if (cust !== 'all') prods = prods.filter(r=>r['Consignee (Ship to)']===cust);
+    if (hsn  !== 'all') prods = prods.filter(r=>r['HSN/SAC']===hsn);
+    prods = [...new Set(prods.map(r=>r['Description of Goods']))].sort();
+    productFilter.innerHTML = '<option value="all">All products</option>' + 
+        prods.map(p=>`<option value="${p}" ${p===prod?'selected':''}>${p}</option>`).join('');
+
+    // HSN — filtered by customer + product
+    let hsns = rawData;
+    if (cust !== 'all') hsns = hsns.filter(r=>r['Consignee (Ship to)']===cust);
+    if (prod !== 'all') hsns = hsns.filter(r=>r['Description of Goods']===prod);
+    hsns = [...new Set(hsns.map(r=>r['HSN/SAC']))].sort();
+    hsnFilter.innerHTML = '<option value="all">All codes</option>' + 
+        hsns.map(h=>`<option value="${h}" ${h===hsn?'selected':''}>${h}</option>`).join('');
+}
+
+// ─── Group data by period ─────────────────────────────────────
+function groupByPeriod(data, period) {
+    if (period === 'all') {
+        return data;
+    }
+
+    const groups = {};
+    data.forEach(r => {
+        const d = new Date(r.Dated);
+        let key;
+        if (period === 'daily')   key = r.Dated;
+        else if (period === 'weekly') {
+            const year = d.getFullYear();
+            const start = new Date(year, 0, 1);
+            const week = Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
+            key = `${year}-W${week}`;
+        }
+        else if (period === 'monthly') key = r.Dated.slice(0,7);
+
+        if (!groups[key]) {
+            groups[key] = {
+                Dated: key,
+                Amount: 0,
+                Quantity: 0,
+                count: 0,
+                invoices: new Set()
+            };
+        }
+        groups[key].Amount    += r.Amount    || 0;
+        groups[key].Quantity  += r.Quantity  || 0;
+        groups[key].count     += 1;
+        groups[key].invoices.add(r['Invoice No.']);
+    });
+
+    return Object.values(groups);
+}
+
+// ─── Main render ──────────────────────────────────────────────
+function renderDashboard() {
+    // 1. Apply party/item/hsn filters
+    const cust = customerFilter.value;
+    const prod = productFilter.value;
+    const hsn  = hsnFilter.value;
+
+    filteredData = rawData.filter(r => {
+        if (cust !== 'all' && r['Consignee (Ship to)'] !== cust) return false;
+        if (prod !== 'all' && r['Description of Goods'] !== prod) return false;
+        if (hsn  !== 'all' && r['HSN/SAC'] !== hsn) return false;
+        return true;
+    });
+
+    // 2. Apply period grouping
+    const period = periodFilter.value;
+    displayData = groupByPeriod(filteredData, period);
+
+    // 3. KPIs (use displayData)
+    const totalRevenue  = displayData.reduce((sum,r)=>sum + (r.Amount||0), 0);
+    const totalInvoices = period === 'all' ? new Set(filteredData.map(r=>r['Invoice No.'])).size : displayData.reduce((sum,g)=>sum + g.invoices.size, 0);
+    const avgOrder      = totalInvoices ? (totalRevenue / totalInvoices).toFixed(0) : 0;
+    const totalQty      = displayData.reduce((sum,r)=>sum + (r.Quantity||0), 0);
+
+    document.getElementById('kpi-row').innerHTML = `
+        <div class="kpi-card"><div class="kpi-label"><i class="fas fa-rupee-sign"></i> Total Revenue</div><div class="kpi-value">₹${Math.round(totalRevenue).toLocaleString()}</div></div>
+        <div class="kpi-card"><div class="kpi-label"><i class="fas fa-file-invoice"></i> Invoices</div><div class="kpi-value">${totalInvoices.toLocaleString()}</div></div>
+        <div class="kpi-card"><div class="kpi-label"><i class="fas fa-boxes"></i> Units Sold</div><div class="kpi-value">${totalQty.toLocaleString()}</div></div>
+        <div class="kpi-card"><div class="kpi-label"><i class="fas fa-chart-line"></i> AOV</div><div class="kpi-value">₹${avgOrder.toLocaleString()}</div></div>
+    `;
+
+    // 4. Charts (destroy existing before creating new)
+    renderSalesTrend(displayData, period);
+    renderTopProducts(filteredData);
+    renderHsnPie(filteredData);
+    renderDiscountBar(filteredData);
+    renderInventoryHeat(invData);
+    renderTopCustomers(filteredData);
+    renderInvoiceTable(filteredData);
+}
+
+// ─── Chart render functions with auto-resize handling ─────────
+function renderSalesTrend(data, period) {
+    const ctx = document.getElementById('salesTrendChart').getContext('2d');
+    if (charts.sales) charts.sales.destroy();
+
+    const sorted = [...data].sort((a,b) => a.Dated.localeCompare(b.Dated));
+    const labels = sorted.map(d => d.Dated);
+    const amounts = sorted.map(d => d.Amount);
+
+    let title = 'Revenue';
+    if (period === 'weekly') title += ' (Weekly)';
+    if (period === 'monthly') title += ' (Monthly)';
+
+    charts.sales = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: title,
+                data: amounts,
+                borderColor: '#2563eb',
+                tension: 0.3,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                tooltip: { backgroundColor: 'white', titleColor: '#1e293b' }
+            },
+            scales: {
+                x: { 
+                    title: { display: true, text: period.charAt(0).toUpperCase() + period.slice(1) },
+                    ticks: { maxRotation: 45, minRotation: 30 }
+                },
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+
+function renderTopProducts(data) {
+    const ctx = document.getElementById('topProductsChart').getContext('2d');
+    if (charts.products) charts.products.destroy();
+
+    const map = {};
+    data.forEach(r => {
+        const p = r['Description of Goods'];
+        map[p] = (map[p] || 0) + (r.Amount || 0);
+    });
+
+    const sorted = Object.entries(map)
+        .sort((a,b)=>b[1]-a[1])
+        .slice(0,8);
+
+    charts.products = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sorted.map(x=>x[0]),
+            datasets: [{ 
+                label: 'Revenue', 
+                data: sorted.map(x=>x[1]), 
+                backgroundColor: '#3b82f6',
+                borderRadius: 6
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                tooltip: { backgroundColor: 'white' }
+            },
+            scales: {
+                x: { ticks: { callback: v => '₹' + v.toLocaleString() } }
+            }
+        }
+    });
+}
+
+function renderHsnPie(data) {
+    const ctx = document.getElementById('hsnPieChart').getContext('2d');
+    if (charts.hsn) charts.hsn.destroy();
+
+    const map = {};
+    data.forEach(r => {
+        const h = r['HSN/SAC'];
+        map[h] = (map[h] || 0) + (r.Amount || 0);
+    });
+
+    const colors = ['#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe','#1e4fd9','#4f46e5'];
+    
+    charts.hsn = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(map),
+            datasets: [{
+                data: Object.values(map),
+                backgroundColor: colors.slice(0, Object.keys(map).length),
+                borderWidth: 0
+            }]
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10 } },
+                tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ₹${ctx.raw.toLocaleString()}` } }
+            }
+        }
+    });
+}
+
+function renderDiscountBar(data) {
+    const ctx = document.getElementById('discountBarChart').getContext('2d');
+    if (charts.discount) charts.discount.destroy();
+
+    const map = {};
+    data.forEach(r => {
+        const p = r['Description of Goods'];
+        if (!map[p]) map[p] = {sum:0, count:0};
+        map[p].sum += r['Disc. %'] || 0;
+        map[p].count++;
+    });
+
+    const avg = Object.entries(map)
+        .map(([p,v])=>({p, avg: v.sum/v.count || 0}))
+        .sort((a,b)=>b.avg-a.avg)
+        .slice(0,7);
+
+    charts.discount = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: avg.map(x=>x.p),
+            datasets: [{ 
+                label:'Avg Discount %', 
+                data:avg.map(x=>x.avg.toFixed(1)), 
+                backgroundColor:'#f97316',
+                borderRadius: 6
+            }]
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, max: 20 } }
+        }
+    });
+}
+
+function renderInventoryHeat(data) {
+    const container = document.getElementById('inventory-heat-table');
+    let html = '<table><thead><tr><th>Item</th><th>Stock</th><th>Sold</th><th>Available</th><th>Status</th></tr></thead><tbody>';
+    data.slice(0,12).forEach(i => {
+        const badge = i.status==='reorder' ? '<span class="badge reorder">Reorder</span>' :
+                      i.status==='slow'    ? '<span class="badge slow">Low</span>' :
+                      '<span class="badge">OK</span>';
+        html += `<tr><td>${i.item}</td><td>${i.stock}</td><td>${i.sold}</td><td>${i.available}</td><td>${badge}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function renderTopCustomers(data) {
+    const tbody = document.querySelector('#top-customers-table tbody');
+    tbody.innerHTML = '';
+
+    const map = {};
+    data.forEach(r => {
+        const c = r['Consignee (Ship to)'];
+        if (!map[c]) map[c] = {rev:0, inv:new Set()};
+        map[c].rev += r.Amount || 0;
+        map[c].inv.add(r['Invoice No.']);
+    });
+
+    Object.entries(map)
+        .map(([c,v])=>({c, rev:v.rev, invoices:v.inv.size}))
+        .sort((a,b)=>b.rev-a.rev)
+        .slice(0,8)
+        .forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${item.c}</td><td>₹${Math.round(item.rev).toLocaleString()}</td><td>${item.invoices}</td>`;
+            tbody.appendChild(tr);
+        });
+}
+
+function renderInvoiceTable(data) {
+    const tbody = document.getElementById('invoice-table-body');
+    tbody.innerHTML = '';
+    data.slice(0,50).forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${r['Invoice No.']}</td>
+            <td>${r.Dated}</td>
+            <td>${r['Consignee (Ship to)']}</td>
+            <td>${r['Description of Goods']}</td>
+            <td>${r.Quantity}</td>
+            <td>₹${Math.round(r.Amount).toLocaleString()}</td>
+            <td>${r['Disc. %']}%</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// ─── Modal functions ──────────────────────────────────────────
+window.openModal = function(chartId, title) {
+    document.getElementById('modalTitle').textContent = title;
+    const modal = document.getElementById('chartModal');
+    const body = document.getElementById('modalBody');
+    body.innerHTML = '';
+
+    if (chartId === 'salesTrendChart' || chartId === 'topProductsChart' || 
+        chartId === 'hsnPieChart' || chartId === 'discountBarChart') {
+        const canvas = document.createElement('canvas');
+        canvas.id = chartId + '-modal';
+        canvas.style.height = '100%';
+        canvas.style.width = '100%';
+        body.appendChild(canvas);
+
+        setTimeout(() => {
+            const ctx = canvas.getContext('2d');
+            const orig = charts[chartId.replace('Chart','').toLowerCase()];
+            if (orig) {
+                new Chart(ctx, orig.config);
+            }
+        }, 100);
+    } else if (chartId === 'inventoryHeatTable') {
+        const table = document.getElementById('inventory-heat-table').cloneNode(true);
+        table.style.maxHeight = 'none';
+        table.style.overflow = 'visible';
+        body.appendChild(table);
+    } else if (chartId === 'topCustomersTable') {
+        const table = document.getElementById('top-customers-table').cloneNode(true);
+        body.appendChild(table);
+    } else if (chartId === 'invoiceTable') {
+        const table = document.getElementById('invoice-drill-table').cloneNode(true);
+        table.style.maxHeight = 'none';
+        body.appendChild(table);
+    }
+
+    modal.style.display = 'flex';
+};
+
+window.closeModal = function() {
+    document.getElementById('chartModal').style.display = 'none';
+};
+
+// ─── Event Listeners ──────────────────────────────────────────
+customerFilter.addEventListener('change', () => { updateDependentFilters(); renderDashboard(); });
+productFilter.addEventListener('change', () => { updateDependentFilters(); renderDashboard(); });
+hsnFilter.addEventListener('change', () => { updateDependentFilters(); renderDashboard(); });
+periodFilter.addEventListener('change', renderDashboard);
+
+// Fullscreen
+document.getElementById('fullScreenBtn').addEventListener('click', () => {
+    const cont = document.getElementById('dashboardContainer');
+    if (!document.fullscreenElement) {
+        cont.requestFullscreen().then(() => {
+            cont.classList.add('full-screen');
+            document.getElementById('fullScreenBtn').innerHTML = '<i class="fas fa-compress"></i> <span class="btn-text">Exit</span>';
+        });
+    } else {
+        document.exitFullscreen();
+    }
+});
+
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+        document.getElementById('dashboardContainer').classList.remove('full-screen');
+        document.getElementById('fullScreenBtn').innerHTML = '<i class="fas fa-expand"></i> <span class="btn-text">Full Screen</span>';
+    }
+});
+
+// Export PNG
+document.getElementById('exportImageBtn').addEventListener('click', () => {
+    html2canvas(document.getElementById('dashboardContainer'), {scale: 1.5, backgroundColor: '#f3f6fc'}).then(canvas => {
+        const a = document.createElement('a');
+        a.download = `invoice-analytics-${new Date().toISOString().slice(0,10)}.png`;
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+    });
+});
+
+// Export Excel
+document.getElementById('exportDataBtn').addEventListener('click', () => {
+    if (!rawData.length) return alert('No data to export');
+    const ws = XLSX.utils.json_to_sheet(rawData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
+    XLSX.writeFile(wb, 'invoices_export.xlsx');
+});
+
+// Clear / Reset
+document.getElementById('clearDataBtn').addEventListener('click', () => {
+    if (confirm('Reset to demo data?')) {
+        rawData = generateMockData();
+        invData = buildInventory(rawData);
+        populateInitialFilters();
+        updateDependentFilters();
+        renderDashboard();
+    }
+});
+
+// Upload Excel
+document.getElementById('excel-upload').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        try {
+            const wb = XLSX.read(ev.target.result, {type:'binary'});
+            rawData = loadExcelData(wb);
+            if (rawData.length === 0) rawData = generateMockData();
+            invData = buildInventory(rawData);
+            populateInitialFilters();
+            updateDependentFilters();
+            renderDashboard();
+        } catch(err) {
+            alert('Error reading file: ' + err.message);
+        }
+    };
+    reader.readAsBinaryString(file);
+});
+
+function populateInitialFilters() {
+    const custs = [...new Set(rawData.map(r=>r['Consignee (Ship to)']))].sort();
+    customerFilter.innerHTML = '<option value="all">All customers</option>' + custs.map(c=>`<option value="${c}">${c}</option>`).join('');
+
+    const prods = [...new Set(rawData.map(r=>r['Description of Goods']))].sort();
+    productFilter.innerHTML = '<option value="all">All products</option>' + prods.map(p=>`<option value="${p}">${p}</option>`).join('');
+
+    const hsns = [...new Set(rawData.map(r=>r['HSN/SAC']))].sort();
+    hsnFilter.innerHTML = '<option value="all">All codes</option>' + hsns.map(h=>`<option value="${h}">${h}</option>`).join('');
+}
+
+// ─── Window resize handler ────────────────────────────────────
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        // Redraw charts on resize for better responsiveness
+        if (rawData.length) renderDashboard();
+    }, 250);
+});
+
+// ─── INIT ─────────────────────────────────────────────────────
+rawData = generateMockData();
+invData = buildInventory(rawData);
+populateInitialFilters();
+updateDependentFilters();
+renderDashboard();
+</script>
+</body>
+</html>

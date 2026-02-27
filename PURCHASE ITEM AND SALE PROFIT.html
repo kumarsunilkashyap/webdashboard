@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel Pro · Fixed Menu & Charts</title>
+  
+  <!-- Bootstrap 5 + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  
+  <!-- Google Fonts - Light & Clean -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  
+  <!-- SheetJS -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f1f5f9;
+      overflow-x: hidden;
+      font-size: 14px; /* Reduced base font */
+    }
+
+    /* Sidebar */
+    .sidebar-pro {
+      background: #0f172a;
+      width: 260px;
+      min-height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 1050;
+      transition: transform 0.3s ease;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.2);
+    }
+
+    .sidebar-pro.collapsed {
+      transform: translateX(-260px);
+    }
+
+    .sidebar-header {
+      padding: 20px 16px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .brand {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #60a5fa, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-menu {
+      padding: 20px 12px;
+    }
+
+    .nav-item-pro {
+      margin-bottom: 6px;
+    }
+
+    .nav-link-pro {
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      color: #cbd5e1;
+      text-decoration: none;
+      border-radius: 10px;
+      transition: all 0.2s;
+      font-weight: 500;
+      font-size: 14px;
+      gap: 12px;
+    }
+
+    .nav-link-pro i {
+      font-size: 1.2rem;
+      width: 24px;
+    }
+
+    .nav-link-pro:hover {
+      background: #1e293b;
+      color: white;
+    }
+
+    .nav-link-pro.active {
+      background: #2563eb;
+      color: white;
+    }
+
+    /* Main Content */
+    .main-area {
+      margin-left: 260px;
+      transition: margin-left 0.3s ease;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .main-area.expanded {
+      margin-left: 0;
+    }
+
+    /* Header */
+    .header-pro {
+      background: white;
+      padding: 12px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .menu-toggle {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #334155;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    .page-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .btn-sm-pro {
+      padding: 6px 16px;
+      font-size: 13px;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+
+    .btn-excel-pro {
+      background: #059669;
+      color: white;
+      border: none;
+    }
+
+    /* Content Container */
+    .content-pro {
+      padding: 20px;
+      flex: 1;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: white;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+      border: 1px solid #e2e8f0;
+    }
+
+    .kpi-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+    }
+
+    .kpi-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.2;
+    }
+
+    .kpi-label {
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    /* Charts Grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .chart-card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .chart-header h6 {
+      font-weight: 600;
+      color: #0f172a;
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 220px;
+      width: 100%;
+    }
+
+    /* Table */
+    .table-pro {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    }
+
+    .table-custom {
+      width: 100%;
+      font-size: 13px;
+      border-collapse: collapse;
+    }
+
+    .table-custom th {
+      background: #f8fafc;
+      padding: 12px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .table-custom td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #334155;
+    }
+
+    /* Footer */
+    .footer-pro {
+      background: white;
+      padding: 12px 24px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12px;
+      color: #64748b;
+      margin-top: auto;
+    }
+
+    /* Login Modal */
+    .modal-content-pro {
+      border-radius: 20px;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar-pro {
+        transform: translateX(-260px);
+      }
+      .sidebar-pro.show-mobile {
+        transform: translateX(0);
+      }
+      .main-area {
+        margin-left: 0;
+      }
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .d-none {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login Modal -->
+<div class="modal fade" id="loginModal" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content modal-content-pro">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="bi bi-shield-lock me-2"></i>Login</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <input type="email" class="form-control form-control-sm mb-3" placeholder="Email" value="demo@excel.com">
+        <input type="password" class="form-control form-control-sm mb-3" placeholder="Password" value="demo123">
+        <button class="btn btn-primary w-100 btn-sm" data-bs-dismiss="modal" id="doLogin">Login</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar-pro" id="sidebar">
+  <div class="sidebar-header">
+    <div class="brand">
+      <i class="bi bi-grid-fill me-2"></i>EXCEL PRO
+    </div>
+  </div>
+  
+  <div class="nav-menu">
+    <div class="nav-item-pro">
+      <a href="#" class="nav-link-pro active" data-menu="dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a>
+    </div>
+    <div class="nav-item-pro">
+      <a href="#" class="nav-link-pro" data-menu="dataview"><i class="bi bi-table"></i> Data View</a>
+    </div>
+    <div class="nav-item-pro">
+      <a href="#" class="nav-link-pro" data-menu="party"><i class="bi bi-people"></i> Party Analysis</a>
+    </div>
+    <div class="nav-item-pro">
+      <a href="#" class="nav-link-pro" data-menu="product"><i class="bi bi-box"></i> Product Analysis</a>
+    </div>
+    <div class="nav-item-pro">
+      <a href="#" class="nav-link-pro" data-menu="profit"><i class="bi bi-graph-up"></i> Profit Center</a>
+    </div>
+    <div class="nav-item-pro">
+      <a href="#" class="nav-link-pro" data-menu="volume"><i class="bi bi-bar-chart"></i> Volume Insights</a>
+    </div>
+    <div class="nav-item-pro">
+      <a href="#" class="nav-link-pro" data-menu="datewise"><i class="bi bi-calendar"></i> Time Analysis</a>
+    </div>
+  </div>
+</aside>
+
+<!-- Main Area -->
+<div class="main-area" id="mainArea">
+  <!-- Header -->
+  <header class="header-pro">
+    <div class="d-flex align-items-center gap-2">
+      <button class="menu-toggle" id="toggleSidebar"><i class="bi bi-list"></i></button>
+      <span class="page-title" id="currentMenuTitle">Dashboard</span>
+    </div>
+    
+    <div class="d-flex gap-2">
+      <label class="btn btn-sm-pro btn-excel-pro">
+        <i class="bi bi-file-excel me-1"></i>Excel
+        <input type="file" id="excelUpload" accept=".xlsx,.xls,.csv" class="d-none" onchange="handleExcelUpload(event)">
+      </label>
+      
+      <button class="btn btn-sm-pro btn-outline-secondary" onclick="exportData()" id="exportBtn"><i class="bi bi-download"></i></button>
+      
+      <button class="btn btn-sm-pro btn-outline-primary" id="fullscreenBtn"><i class="bi bi-arrows-fullscreen"></i></button>
+      
+      <button class="btn btn-sm-pro btn-outline-success" id="loginBtn" data-bs-toggle="modal" data-bs-target="#loginModal"><i class="bi bi-box-arrow-in-right"></i></button>
+      
+      <button class="btn btn-sm-pro btn-outline-danger d-none" id="logoutBtn" onclick="logout()"><i class="bi bi-box-arrow-right"></i></button>
+    </div>
+  </header>
+
+  <!-- Dynamic Content Sections -->
+  <div class="content-pro" id="dynamicContent">
+    <!-- Dashboard Section (default) -->
+    <div id="dashboard-section">
+      <div class="kpi-grid" id="kpiCards"></div>
+      
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header"><h6><i class="bi bi-calendar me-2 text-primary"></i>Monthly Sales</h6></div>
+          <div class="chart-container"><canvas id="chart1"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><h6><i class="bi bi-pie-chart me-2 text-success"></i>Party Revenue</h6></div>
+          <div class="chart-container"><canvas id="chart2"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><h6><i class="bi bi-box me-2 text-warning"></i>Top Products</h6></div>
+          <div class="chart-container"><canvas id="chart3"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><h6><i class="bi bi-percent me-2 text-danger"></i>Profit Margins</h6></div>
+          <div class="chart-container"><canvas id="chart4"></canvas></div>
+        </div>
+      </div>
+      
+      <div class="table-pro">
+        <h6 class="mb-2"><i class="bi bi-table me-2"></i>Recent Data</h6>
+        <div class="table-responsive">
+          <table class="table-custom">
+            <thead><tr><th>Date</th><th>Party</th><th>Product</th><th>Qty</th><th>Value</th><th>Profit</th></tr></thead>
+            <tbody id="tablePreview"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Data View Section -->
+    <div id="dataview-section" class="d-none">
+      <div class="table-pro">
+        <h6 class="mb-2">Complete Data</h6>
+        <div class="table-responsive" style="max-height: 400px;">
+          <table class="table-custom">
+            <thead><tr><th>Date</th><th>GSTIN</th><th>Party</th><th>Particulars</th><th>Qty</th><th>Rate</th><th>Value</th><th>Sale Rate</th><th>Profit</th></tr></thead>
+            <tbody id="fullTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Party Analysis Section -->
+    <div id="party-section" class="d-none">
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-header"><h6>Party-wise Value</h6></div><div class="chart-container"><canvas id="partyValueChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Party-wise Profit</h6></div><div class="chart-container"><canvas id="partyProfitChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>GSTIN Distribution</h6></div><div class="chart-container"><canvas id="partyGSTChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Avg Transaction</h6></div><div class="chart-container"><canvas id="partyAvgChart"></canvas></div></div>
+      </div>
+    </div>
+    
+    <!-- Product Analysis Section -->
+    <div id="product-section" class="d-none">
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-header"><h6>Product Value</h6></div><div class="chart-container"><canvas id="prodValueChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Product Quantity</h6></div><div class="chart-container"><canvas id="prodQtyChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Product Profit</h6></div><div class="chart-container"><canvas id="prodProfitChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Rate Analysis</h6></div><div class="chart-container"><canvas id="prodRateChart"></canvas></div></div>
+      </div>
+    </div>
+    
+    <!-- Profit Center Section (FIXED) -->
+    <div id="profit-section" class="d-none">
+      <div class="kpi-grid" id="profitKPI"></div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-header"><h6>Margin % by Product</h6></div><div class="chart-container"><canvas id="marginProdChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Profit vs Value</h6></div><div class="chart-container"><canvas id="profitScatterChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Sale Rate Impact</h6></div><div class="chart-container"><canvas id="saleRateProfitChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Loss Making Items</h6></div><div class="chart-container"><canvas id="lossChart"></canvas></div></div>
+      </div>
+    </div>
+    
+    <!-- Volume Insights Section (FIXED) -->
+    <div id="volume-section" class="d-none">
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-header"><h6>High Volume Items</h6></div><div class="chart-container"><canvas id="highQtyChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Rate Distribution</h6></div><div class="chart-container"><canvas id="rateDistChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Quantity vs Value</h6></div><div class="chart-container"><canvas id="qtyVsValueChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Average Rate</h6></div><div class="chart-container"><canvas id="avgRateChart"></canvas></div></div>
+      </div>
+    </div>
+    
+    <!-- Time Analysis Section -->
+    <div id="datewise-section" class="d-none">
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-header"><h6>Daily Sales</h6></div><div class="chart-container"><canvas id="dailySalesChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Monthly Profit</h6></div><div class="chart-container"><canvas id="monthlyProfitChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Weekday Analysis</h6></div><div class="chart-container"><canvas id="weekdayChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h6>Quarterly</h6></div><div class="chart-container"><canvas id="quarterChart"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Footer - WITHOUT DATA HEADER -->
+  <footer class="footer-pro d-flex justify-content-between">
+    <span>© 2026 Excel Pro Dashboard</span>
+    <span>v2.0 · All menus fixed</span>
+  </footer>
+</div>
+
+<script>
+  // ========== GLOBAL ==========
+  let businessData = [];
+  let charts = {};
+  let loggedIn = false;
+  let currentMenu = 'dashboard';
+  
+  // Sample Data
+  const sampleData = [
+    {Date: '2026-01-05', GSTIN: '27AAAAA0001A1Z5', Party: 'Raj Traders', Particulars: 'Basmati Rice', Qty: 50, Rate: 80, Value: 4000, SaleRate: 90, Profit: 500},
+    {Date: '2026-01-12', GSTIN: '27BBBBB0002B2Z6', Party: 'Sharma Store', Particulars: 'Toor Dal', Qty: 120, Rate: 65, Value: 7800, SaleRate: 70, Profit: 600},
+    {Date: '2026-02-01', GSTIN: '27CCCCC0003C3Z7', Party: 'Desi Bazaar', Particulars: 'Mustard Oil', Qty: 80, Rate: 120, Value: 9600, SaleRate: 135, Profit: 1200},
+    {Date: '2026-02-14', GSTIN: '27AAAAA0001A1Z5', Party: 'Raj Traders', Particulars: 'Wheat Flour', Qty: 30, Rate: 300, Value: 9000, SaleRate: 330, Profit: 900},
+    {Date: '2026-03-03', GSTIN: '27DDDDD0004D4Z8', Party: 'Green Grocery', Particulars: 'Sugar', Qty: 100, Rate: 40, Value: 4000, SaleRate: 45, Profit: 500},
+    {Date: '2026-03-20', GSTIN: '27EEEEE0005E5Z9', Party: 'Metro Cash', Particulars: 'Tea Powder', Qty: 200, Rate: 90, Value: 18000, SaleRate: 110, Profit: 4000},
+    {Date: '2026-04-02', GSTIN: '27AAAAA0001A1Z5', Party: 'Raj Traders', Particulars: 'Basmati Rice', Qty: 70, Rate: 82, Value: 5740, SaleRate: 93, Profit: 770},
+    {Date: '2026-04-15', GSTIN: '27FFFFF0006F6Z0', Party: 'Quick Bites', Particulars: 'Snacks', Qty: 300, Rate: 20, Value: 6000, SaleRate: 25, Profit: 1500}
+  ];
+
+  // ========== INIT ==========
+  window.onload = function() {
+    businessData = [...sampleData];
+    updateAllSections();
+    setupNavigation();
+    updateAuthUI();
+    
+    // Sidebar Toggle
+    document.getElementById('toggleSidebar').addEventListener('click', function() {
+      document.getElementById('sidebar').classList.toggle('collapsed');
+      document.getElementById('mainArea').classList.toggle('expanded');
+    });
+    
+    // Fullscreen
+    document.getElementById('fullscreenBtn').addEventListener('click', function() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    });
+    
+    // Login
+    document.getElementById('doLogin').addEventListener('click', function() {
+      loggedIn = true;
+      updateAuthUI();
+    });
+  };
+  
+  // ========== NAVIGATION ==========
+  function setupNavigation() {
+    document.querySelectorAll('.nav-link-pro').forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        document.querySelectorAll('.nav-link-pro').forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+        
+        const menu = this.dataset.menu;
+        currentMenu = menu;
+        
+        // Update title
+        const titles = {
+          dashboard: 'Dashboard', dataview: 'Data View', party: 'Party Analysis',
+          product: 'Product Analysis', profit: 'Profit Center',
+          volume: 'Volume Insights', datewise: 'Time Analysis'
+        };
+        document.getElementById('currentMenuTitle').innerText = titles[menu] || 'Dashboard';
+        
+        // Hide all sections
+        document.querySelectorAll('#dynamicContent > div').forEach(div => div.classList.add('d-none'));
+        
+        // Show selected
+        if (menu === 'dashboard') {
+          document.getElementById('dashboard-section').classList.remove('d-none');
+          updateDashboardCharts();
+        } else if (menu === 'dataview') {
+          document.getElementById('dataview-section').classList.remove('d-none');
+          updateFullTable();
+        } else if (menu === 'party') {
+          document.getElementById('party-section').classList.remove('d-none');
+          updatePartyCharts();
+        } else if (menu === 'product') {
+          document.getElementById('product-section').classList.remove('d-none');
+          updateProductCharts();
+        } else if (menu === 'profit') {
+          document.getElementById('profit-section').classList.remove('d-none');
+          updateProfitCharts();  // FIXED: Now properly defined
+        } else if (menu === 'volume') {
+          document.getElementById('volume-section').classList.remove('d-none');
+          updateVolumeCharts();  // FIXED: Now properly defined
+        } else if (menu === 'datewise') {
+          document.getElementById('datewise-section').classList.remove('d-none');
+          updateDatewiseCharts();
+        }
+        
+        // On mobile, auto close sidebar
+        if (window.innerWidth <= 768) {
+          document.getElementById('sidebar').classList.add('collapsed');
+          document.getElementById('mainArea').classList.add('expanded');
+        }
+      });
+    });
+  }
+  
+  // ========== EXCEL UPLOAD ==========
+  window.handleExcelUpload = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
+      
+      if (rows.length > 1) {
+        businessData = [];
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          if (r.length < 5) continue;
+          businessData.push({
+            Date: r[0] || '',
+            GSTIN: r[1] || '',
+            Party: r[2] || '',
+            Particulars: r[3] || '',
+            Qty: parseFloat(r[4]) || 0,
+            Rate: parseFloat(r[5]) || 0,
+            Value: parseFloat(r[6]) || 0,
+            SaleRate: parseFloat(r[7]) || 0,
+            Profit: parseFloat(r[8]) || 0
+          });
+        }
+        updateAllSections();
+        
+        // Refresh current section
+        if (currentMenu === 'dashboard') updateDashboardCharts();
+        else if (currentMenu === 'party') updatePartyCharts();
+        else if (currentMenu === 'product') updateProductCharts();
+        else if (currentMenu === 'profit') updateProfitCharts();
+        else if (currentMenu === 'volume') updateVolumeCharts();
+        else if (currentMenu === 'datewise') updateDatewiseCharts();
+        else if (currentMenu === 'dataview') updateFullTable();
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  
+  // ========== UPDATE FUNCTIONS ==========
+  function updateAllSections() {
+    updateKPIs();
+    updateTablePreview();
+  }
+  
+  function updateKPIs() {
+    const totalValue = businessData.reduce((s,r) => s + (r.Value||0), 0);
+    const totalProfit = businessData.reduce((s,r) => s + (r.Profit||0), 0);
+    const totalQty = businessData.reduce((s,r) => s + (r.Qty||0), 0);
+    const margin = totalValue ? ((totalProfit/totalValue)*100).toFixed(1) : 0;
+    
+    document.getElementById('kpiCards').innerHTML = `
+      <div class="kpi-card"><div class="kpi-icon" style="background:#dbeafe;color:#2563eb"><i class="bi bi-currency-rupee"></i></div><div class="kpi-value">₹${totalValue.toLocaleString()}</div><div class="kpi-label">Total Value</div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#dcfce7;color:#16a34a"><i class="bi bi-graph-up"></i></div><div class="kpi-value">₹${totalProfit.toLocaleString()}</div><div class="kpi-label">Total Profit</div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#fff3cd;color:#d97706"><i class="bi bi-box"></i></div><div class="kpi-value">${totalQty}</div><div class="kpi-label">Total Qty</div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#f3e8ff;color:#9333ea"><i class="bi bi-percent"></i></div><div class="kpi-value">${margin}%</div><div class="kpi-label">Avg Margin</div></div>
+    `;
+  }
+  
+  function updateTablePreview() {
+    let html = '';
+    businessData.slice(0, 5).forEach(r => {
+      html += `<tr><td>${r.Date}</td><td>${r.Party}</td><td>${r.Particulars}</td><td>${r.Qty}</td><td>₹${r.Value}</td><td>₹${r.Profit}</td></tr>`;
+    });
+    document.getElementById('tablePreview').innerHTML = html || '<tr><td colspan="6" class="text-center">No data</td></tr>';
+  }
+  
+  function updateFullTable() {
+    let html = '';
+    businessData.forEach(r => {
+      html += `<tr><td>${r.Date}</td><td>${r.GSTIN}</td><td>${r.Party}</td><td>${r.Particulars}</td><td>${r.Qty}</td><td>${r.Rate}</td><td>${r.Value}</td><td>${r.SaleRate}</td><td>${r.Profit}</td></tr>`;
+    });
+    document.getElementById('fullTableBody').innerHTML = html || '<tr><td colspan="9">No data</td></tr>';
+  }
+  
+  // ========== DASHBOARD CHARTS ==========
+  function updateDashboardCharts() {
+    destroyCharts(['chart1','chart2','chart3','chart4']);
+    
+    const monthly = {};
+    businessData.forEach(r => { if(r.Date) { const m = r.Date.substring(0,7); monthly[m] = (monthly[m]||0) + r.Value; } });
+    charts.chart1 = new Chart(document.getElementById('chart1'), {
+      type: 'line', data: { labels: Object.keys(monthly).slice(-6), datasets: [{ label: 'Sales', data: Object.values(monthly).slice(-6), borderColor: '#2563eb' }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+    
+    const partyVal = {};
+    businessData.forEach(r => { partyVal[r.Party] = (partyVal[r.Party]||0) + r.Value; });
+    charts.chart2 = new Chart(document.getElementById('chart2'), {
+      type: 'pie', data: { labels: Object.keys(partyVal).slice(0,5), datasets: [{ data: Object.values(partyVal).slice(0,5), backgroundColor: ['#2563eb','#7c3aed','#db2777','#ea580c','#65a30d'] }] },
+      options: { responsive: true }
+    });
+    
+    const prodVal = {};
+    businessData.forEach(r => { prodVal[r.Particulars] = (prodVal[r.Particulars]||0) + r.Value; });
+    charts.chart3 = new Chart(document.getElementById('chart3'), {
+      type: 'bar', data: { labels: Object.keys(prodVal).slice(0,5), datasets: [{ label: 'Value', data: Object.values(prodVal).slice(0,5) }] },
+      options: { responsive: true, indexAxis: 'y', maintainAspectRatio: false }
+    });
+    
+    const margins = businessData.slice(0,5).map(r => ({ prod: r.Particulars, margin: r.Value ? ((r.Profit/r.Value)*100).toFixed(1) : 0 }));
+    charts.chart4 = new Chart(document.getElementById('chart4'), {
+      type: 'bar', data: { labels: margins.map(m=>m.prod), datasets: [{ label: 'Margin %', data: margins.map(m=>m.margin) }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  }
+  
+  // ========== PARTY CHARTS ==========
+  function updatePartyCharts() {
+    destroyCharts(['partyValueChart','partyProfitChart','partyGSTChart','partyAvgChart']);
+    
+    const partyValue = {}, partyProfit = {}, partyGST = {}, partyCount = {};
+    businessData.forEach(r => {
+      partyValue[r.Party] = (partyValue[r.Party]||0) + r.Value;
+      partyProfit[r.Party] = (partyProfit[r.Party]||0) + r.Profit;
+      partyGST[r.GSTIN] = (partyGST[r.GSTIN]||0) + 1;
+      partyCount[r.Party] = (partyCount[r.Party]||0) + 1;
+    });
+    
+    charts.partyValueChart = new Chart(document.getElementById('partyValueChart'), {
+      type: 'bar', data: { labels: Object.keys(partyValue).slice(0,8), datasets: [{ label: 'Value', data: Object.values(partyValue).slice(0,8) }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+    charts.partyProfitChart = new Chart(document.getElementById('partyProfitChart'), {
+      type: 'bar', data: { labels: Object.keys(partyProfit).slice(0,8), datasets: [{ label: 'Profit', data: Object.values(partyProfit).slice(0,8) }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+    charts.partyGSTChart = new Chart(document.getElementById('partyGSTChart'), {
+      type: 'pie', data: { labels: Object.keys(partyGST).slice(0,5), datasets: [{ data: Object.values(partyGST).slice(0,5) }] },
+      options: { responsive: true }
+    });
+    
+    const avgParty = Object.keys(partyValue).map(p => ({ party: p, avg: partyValue[p] / partyCount[p] })).slice(0,8);
+    charts.partyAvgChart = new Chart(document.getElementById('partyAvgChart'), {
+      type: 'bar', data: { labels: avgParty.map(a=>a.party), datasets: [{ label: 'Avg Value', data: avgParty.map(a=>a.avg) }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  }
+  
+  // ========== PRODUCT CHARTS ==========
+  function updateProductCharts() {
+    destroyCharts(['prodValueChart','prodQtyChart','prodProfitChart','prodRateChart']);
+    
+    const prodVal = {}, prodQty = {}, prodProfit = {};
+    businessData.forEach(r => {
+      prodVal[r.Particulars] = (prodVal[r.Particulars]||0) + r.Value;
+      prodQty[r.Particulars] = (prodQty[r.Particulars]||0) + r.Qty;
+      prodProfit[r.Particulars] = (prodProfit[r.Particulars]||0) + r.Profit;
+    });
+    
+    charts.prodValueChart = new Chart(document.getElementById('prodValueChart'), {
+      type: 'bar', data: { labels: Object.keys(prodVal).slice(0,8), datasets: [{ label: 'Value', data: Object.values(prodVal).slice(0,8) }] },
+      options: { responsive: true }
+    });
+    charts.prodQtyChart = new Chart(document.getElementById('prodQtyChart'), {
+      type: 'bar', data: { labels: Object.keys(prodQty).slice(0,8), datasets: [{ label: 'Qty', data: Object.values(prodQty).slice(0,8) }] },
+      options: { responsive: true }
+    });
+    charts.prodProfitChart = new Chart(document.getElementById('prodProfitChart'), {
+      type: 'bar', data: { labels: Object.keys(prodProfit).slice(0,8), datasets: [{ label: 'Profit', data: Object.values(prodProfit).slice(0,8) }] },
+      options: { responsive: true }
+    });
+    
+    const rateData = businessData.slice(0,8).map(r => ({ prod: r.Particulars, rate: r.Rate, saleRate: r.SaleRate }));
+    charts.prodRateChart = new Chart(document.getElementById('prodRateChart'), {
+      type: 'line', data: { labels: rateData.map(d=>d.prod), datasets: [{ label: 'Rate', data: rateData.map(d=>d.rate) }, { label: 'Sale Rate', data: rateData.map(d=>d.saleRate) }] },
+      options: { responsive: true }
+    });
+  }
+  
+  // ========== PROFIT CENTER CHARTS (FIXED) ==========
+  function updateProfitCharts() {
+    destroyCharts(['marginProdChart','profitScatterChart','saleRateProfitChart','lossChart']);
+    
+    // Margin % Chart
+    const margins = businessData.map(r => ({ 
+      prod: r.Particulars, 
+      margin: r.Value ? (r.Profit/r.Value)*100 : 0 
+    })).sort((a,b) => b.margin - a.margin).slice(0,8);
+    
+    charts.marginProdChart = new Chart(document.getElementById('marginProdChart'), {
+      type: 'bar', 
+      data: { 
+        labels: margins.map(m => m.prod), 
+        datasets: [{ label: 'Margin %', data: margins.map(m => m.margin), backgroundColor: '#f59e0b' }] 
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+    
+    // Profit vs Value Scatter
+    const scatterData = businessData.slice(0,15).map(r => ({ x: r.Value, y: r.Profit }));
+    charts.profitScatterChart = new Chart(document.getElementById('profitScatterChart'), {
+      type: 'scatter',
+      data: { datasets: [{ label: 'Profit vs Value', data: scatterData, backgroundColor: '#ef4444' }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+    
+    // Sale Rate vs Profit
+    const saleRateData = businessData.slice(0,10).map(r => ({ x: r.SaleRate, y: r.Profit }));
+    charts.saleRateProfitChart = new Chart(document.getElementById('saleRateProfitChart'), {
+      type: 'scatter',
+      data: { datasets: [{ label: 'Sale Rate vs Profit', data: saleRateData, backgroundColor: '#3b82f6' }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+    
+    // Loss Making Items
+    const lossItems = businessData.filter(r => r.Profit < 0);
+    if (lossItems.length > 0) {
+      charts.lossChart = new Chart(document.getElementById('lossChart'), {
+        type: 'bar',
+        data: { 
+          labels: lossItems.slice(0,8).map(l => l.Particulars), 
+          datasets: [{ label: 'Loss', data: lossItems.slice(0,8).map(l => l.Profit), backgroundColor: '#dc2626' }] 
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    } else {
+      // Show dummy if no loss
+      charts.lossChart = new Chart(document.getElementById('lossChart'), {
+        type: 'bar',
+        data: { labels: ['No Loss Items'], datasets: [{ data: [0] }] },
+        options: { responsive: true }
+      });
+    }
+    
+    // Update Profit KPI
+    const totalProfit = businessData.reduce((s,r) => s + (r.Profit||0), 0);
+    const avgMargin = (businessData.reduce((s,r) => s + (r.Value ? (r.Profit/r.Value)*100 : 0), 0) / businessData.length).toFixed(1);
+    document.getElementById('profitKPI').innerHTML = `
+      <div class="kpi-card"><div class="kpi-value">₹${totalProfit.toLocaleString()}</div><div class="kpi-label">Total Profit</div></div>
+      <div class="kpi-card"><div class="kpi-value">${avgMargin}%</div><div class="kpi-label">Avg Margin</div></div>
+      <div class="kpi-card"><div class="kpi-value">${businessData.filter(r => r.Profit > 0).length}</div><div class="kpi-label">Profitable Items</div></div>
+      <div class="kpi-card"><div class="kpi-value">${businessData.filter(r => r.Profit < 0).length}</div><div class="kpi-label">Loss Items</div></div>
+    `;
+  }
+  
+  // ========== VOLUME INSIGHTS CHARTS (FIXED) ==========
+  function updateVolumeCharts() {
+    destroyCharts(['highQtyChart','rateDistChart','qtyVsValueChart','avgRateChart']);
+    
+    // High Volume Items
+    const highQty = [...businessData].sort((a,b) => b.Qty - a.Qty).slice(0,8);
+    charts.highQtyChart = new Chart(document.getElementById('highQtyChart'), {
+      type: 'bar',
+      data: { 
+        labels: highQty.map(i => i.Particulars), 
+        datasets: [{ label: 'Quantity', data: highQty.map(i => i.Qty), backgroundColor: '#10b981' }] 
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+    
+    // Rate Distribution
+    const rates = businessData.map(r => r.Rate).filter(r => r > 0);
+    const bins = [0, 50, 100, 200, 500, 1000];
+    const dist = bins.map((b, i) => rates.filter(r => r > (bins[i-1]||0) && r <= b).length);
+    charts.rateDistChart = new Chart(document.getElementById('rateDistChart'), {
+      type: 'bar',
+      data: { 
+        labels: ['0-50','51-100','101-200','201-500','501+'], 
+        datasets: [{ label: 'Count', data: dist.slice(1), backgroundColor: '#8b5cf6' }] 
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+    
+    // Quantity vs Value
+    const qvData = businessData.slice(0,10).map(r => ({ x: r.Qty, y: r.Value }));
+    charts.qtyVsValueChart = new Chart(document.getElementById('qtyVsValueChart'), {
+      type: 'scatter',
+      data: { datasets: [{ label: 'Qty vs Value', data: qvData, backgroundColor: '#f97316' }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+    
+    // Average Rate by Product
+    const avgRate = {};
+    const count = {};
+    businessData.forEach(r => {
+      if (!avgRate[r.Particulars]) avgRate[r.Particulars] = 0;
+      if (!count[r.Particulars]) count[r.Particulars] = 0;
+      avgRate[r.Particulars] += r.Rate;
+      count[r.Particulars] += 1;
+    });
+    const avgRateData = Object.keys(avgRate).map(k => ({ prod: k, avg: avgRate[k]/count[k] })).slice(0,8);
+    charts.avgRateChart = new Chart(document.getElementById('avgRateChart'), {
+      type: 'bar',
+      data: { labels: avgRateData.map(d => d.prod), datasets: [{ label: 'Avg Rate', data: avgRateData.map(d => d.avg) }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  }
+  
+  // ========== DATE WISE CHARTS ==========
+  function updateDatewiseCharts() {
+    destroyCharts(['dailySalesChart','monthlyProfitChart','weekdayChart','quarterChart']);
+    
+    // Daily Sales (last 10 days)
+    const daily = {};
+    businessData.forEach(r => { if(r.Date) daily[r.Date] = (daily[r.Date]||0) + r.Value; });
+    const last10 = Object.entries(daily).slice(-10);
+    charts.dailySalesChart = new Chart(document.getElementById('dailySalesChart'), {
+      type: 'line', data: { labels: last10.map(d=>d[0]), datasets: [{ data: last10.map(d=>d[1]) }] },
+      options: { responsive: true }
+    });
+    
+    // Monthly Profit
+    const monthlyProfit = {};
+    businessData.forEach(r => { if(r.Date) { const m = r.Date.substring(0,7); monthlyProfit[m] = (monthlyProfit[m]||0) + r.Profit; } });
+    charts.monthlyProfitChart = new Chart(document.getElementById('monthlyProfitChart'), {
+      type: 'bar', data: { labels: Object.keys(monthlyProfit), datasets: [{ data: Object.values(monthlyProfit) }] },
+      options: { responsive: true }
+    });
+    
+    // Weekday Analysis
+    const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const dayData = new Array(7).fill(0);
+    businessData.forEach(r => {
+      if (r.Date) {
+        const d = new Date(r.Date);
+        if (!isNaN(d)) dayData[d.getDay()] += r.Value;
+      }
+    });
+    charts.weekdayChart = new Chart(document.getElementById('weekdayChart'), {
+      type: 'bar', data: { labels: weekdays, datasets: [{ data: dayData }] },
+      options: { responsive: true }
+    });
+    
+    // Quarterly
+    const qData = { 'Q1':0, 'Q2':0, 'Q3':0, 'Q4':0 };
+    businessData.forEach(r => {
+      if (r.Date) {
+        const m = new Date(r.Date).getMonth();
+        if (m < 3) qData.Q1 += r.Value;
+        else if (m < 6) qData.Q2 += r.Value;
+        else if (m < 9) qData.Q3 += r.Value;
+        else qData.Q4 += r.Value;
+      }
+    });
+    charts.quarterChart = new Chart(document.getElementById('quarterChart'), {
+      type: 'pie', data: { labels: Object.keys(qData), datasets: [{ data: Object.values(qData) }] },
+      options: { responsive: true }
+    });
+  }
+  
+  // Helper to destroy charts
+  function destroyCharts(ids) {
+    ids.forEach(id => {
+      if (charts[id]) {
+        charts[id].destroy();
+        charts[id] = null;
+      }
+    });
+  }
+  
+  // ========== AUTH & EXPORT ==========
+  function updateAuthUI() {
+    document.getElementById('loginBtn').classList.toggle('d-none', loggedIn);
+    document.getElementById('logoutBtn').classList.toggle('d-none', !loggedIn);
+    document.getElementById('exportBtn').disabled = !loggedIn;
+  }
+  
+  window.logout = function() {
+    loggedIn = false;
+    updateAuthUI();
+  };
+  
+  window.exportData = function() {
+    if (!loggedIn) { alert('Login first'); return; }
+    const blob = new Blob([JSON.stringify(businessData)], {type: 'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'data.json';
+    a.click();
+  };
+</script>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
