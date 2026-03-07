@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recharge Transaction Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+* {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #f6f9fc 0%, #edf2f9 100%);
+    min-height: 100vh;
+}
+
+.chart-container {
+    transition: all 0.3s ease;
+}
+
+.chart-container:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.kpi-card {
+    transition: all 0.3s ease;
+    background: white;
+    border: 1px solid #e2e8f0;
+}
+
+.kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border-color: #3b82f6;
+}
+
+.kpi-popup {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+    min-width: 220px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 50;
+}
+
+.kpi-card:hover .kpi-popup {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.kpi-popup::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: white;
+}
+
+.filter-bar {
+    background: white;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.period-tab {
+    transition: all 0.2s ease;
+}
+
+.period-tab.active {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+.chart-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.chart-card:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* Table styles */
+table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+
+th {
+    background: #f8fafc;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+td {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #334155;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+tr:hover td {
+    background-color: #f1f5f9;
+}
+
+/* Status badges */
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-failed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.type-offer {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.type-nonoffer {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* Animation */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-up {
+    animation: slideUp 0.5s ease-out;
+}
+
+/* Fullscreen modal */
+#fsModal {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+/* Gradient text */
+.gradient-text {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Button styles */
+.btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+}
+
+.btn-secondary {
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-secondary:hover {
+    background: #f8fafc;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+/* Input styles */
+.input-modern {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    transition: all 0.2s;
+    background: white;
+}
+
+.input-modern:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Select styles */
+.select-modern {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    background: white;
+    cursor: pointer;
+}
+
+.select-modern:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Pagination */
+.pagination-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #64748b;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: #eff6ff;
+}
+
+.pagination-btn.active {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    border-color: transparent;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Loading overlay */
+#lov {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+}
+
+.spin {
+    border: 3px solid #e2e8f0;
+    border-top-color: #3b82f6;
+    border-right-color: #8b5cf6;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Toast */
+#toast {
+    background: white;
+    border-left: 4px solid #3b82f6;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+</style>
+</head>
+<body class="antialiased">
+
+<!-- LOADING OVERLAY -->
+<div id="lov" class="fixed inset-0 z-[9999] hidden flex-col items-center justify-center gap-4">
+    <div class="spin"></div>
+    <p class="text-slate-600 font-medium">Processing your data...</p>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div id="toast" class="fixed bottom-6 right-6 z-[9999] rounded-lg py-3 px-5 text-sm font-medium transform translate-y-20 opacity-0 transition-all duration-300 shadow-xl max-w-md flex items-center gap-2"></div>
+
+<!-- FULLSCREEN MODAL -->
+<div id="fsModal" class="fixed inset-0 z-[1000] hidden flex-col p-6">
+    <div class="flex items-center justify-between mb-4">
+        <h2 id="fsmTitle" class="text-2xl font-bold gradient-text"></h2>
+        <div class="flex gap-3">
+            <button class="btn-secondary" onclick="exportChartAsImage()">
+                <i class="fas fa-download"></i> Save PNG
+            </button>
+            <button class="btn-secondary" onclick="closeFS()">
+                <i class="fas fa-times"></i> Close
+            </button>
+        </div>
+    </div>
+    <div class="flex-1 bg-white rounded-2xl p-6 shadow-xl border border-slate-200">
+        <canvas id="fsCanvas" class="w-full h-full"></canvas>
+    </div>
+</div>
+
+<!-- LOGIN PAGE -->
+<div id="loginPage" class="fixed inset-0 z-[2000] flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div class="w-full max-w-md p-8 animate-slide-up">
+        <div class="text-center mb-8">
+            <h1 class="text-5xl font-extrabold gradient-text mb-2">Recharge</h1>
+            <p class="text-slate-600">Intelligent Transaction Analytics Web Dashboard</p>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
+            <div class="mb-5">
+                <label class="block text-sm font-semibold text-slate-700 mb-2">
+                    <i class="fas fa-user text-blue-500 mr-2"></i>Username
+                </label>
+                <input type="text" id="lu" class="input-modern w-full" placeholder="Enter username">
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-slate-700 mb-2">
+                    <i class="fas fa-lock text-blue-500 mr-2"></i>Password
+                </label>
+                <input type="password" id="lp" class="input-modern w-full" placeholder="Enter password">
+            </div>
+            
+            <div id="lerr" class="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3 hidden">
+                <i class="fas fa-exclamation-circle mr-2"></i>Invalid credentials
+            </div>
+            
+            <button class="btn-primary w-full justify-center py-3 mb-4" onclick="doLogin()">
+                <i class="fas fa-sign-in-alt"></i> Sign In
+            </button>
+            
+            <div class="relative my-6">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-slate-200"></div>
+                </div>
+                <div class="relative flex justify-center text-sm">
+                    <span class="px-4 bg-white text-slate-500">or</span>
+                </div>
+            </div>
+            
+            <button class="btn-secondary w-full justify-center py-3" onclick="demoLogin()">
+                <i class="fas fa-rocket text-purple-500"></i> Load Demo Dashboard
+            </button>
+            
+            <p class="mt-6 text-sm text-slate-600 text-center bg-slate-50 p-3 rounded-lg">
+                <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                Demo: <span class="font-mono bg-blue-100 text-blue-700 px-2 py-1 rounded">admin</span> / 
+                <span class="font-mono bg-blue-100 text-blue-700 px-2 py-1 rounded">admin123</span>
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" class="hidden min-h-screen flex-col">
+    <!-- TOPBAR -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 px-6 py-3">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <span class="text-2xl font-extrabold gradient-text">Sunil Kumar</span>
+                <span id="tfile" class="text-sm text-slate-600 bg-slate-100 px-4 py-2 rounded-full hidden md:inline-flex items-center gap-2">
+                    <i class="fas fa-file-alt text-blue-500"></i>
+                    <span class="max-w-[200px] truncate">No file loaded</span>
+                </span>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button class="btn-primary" onclick="document.getElementById('tfi').click()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span class="hidden sm:inline">Upload</span>
+                </button>
+                <input type="file" id="tfi" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleFile(this)">
+                
+                <div class="flex items-center gap-2 bg-slate-100 pl-2 pr-4 py-1 rounded-full">
+                    <div id="uinit" class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">A</div>
+                    <span id="uname" class="font-medium text-slate-700">Admin</span>
+                </div>
+                
+                <button class="btn-secondary" onclick="doLogout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="hidden sm:inline">Logout</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- UPLOAD ZONE -->
+    <div id="uploadZone" class="flex-1 flex flex-col items-center justify-center p-8">
+        <div id="dropZone" class="max-w-2xl w-full bg-white rounded-2xl border-3 border-dashed border-slate-300 p-16 text-center cursor-pointer transition-all hover:border-blue-400 hover:shadow-lg hover:scale-[1.02]">
+            <i class="fas fa-chart-line text-6xl text-blue-500 mb-4"></i>
+            <h2 class="text-3xl font-bold text-slate-800 mb-3">Upload Transaction Report</h2>
+            <p class="text-slate-600 mb-4">Drag & drop your Excel or CSV file here,<br>or click to browse your files.</p>
+            <div class="text-sm text-slate-500 font-mono mb-6">
+                <i class="fas fa-file-excel text-green-600 mr-1"></i> .xlsx · .xls · .csv
+            </div>
+            <button class="btn-primary px-8 py-3" onclick="event.stopPropagation();document.getElementById('mfi').click()">
+                <i class="fas fa-folder-open"></i> Browse File
+            </button>
+            <input type="file" id="mfi" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleFile(this)">
+        </div>
+        
+        <p class="mt-6 text-slate-600">
+            <i class="fas fa-magic text-purple-500 mr-2"></i>
+            Or <span class="text-blue-600 font-semibold cursor-pointer hover:underline" onclick="loadSample()">load 1-year sample data default</span>
+        </p>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="hidden flex-col gap-6 p-6">
+        <!-- Header with period tabs -->
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h2 class="text-2xl font-bold text-slate-800">Transaction Overview</h2>
+                    <span id="rbadge" class="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-sm font-medium">
+                        <i class="fas fa-database mr-1"></i> <span></span>
+                    </span>
+                </div>
+                <p id="drange" class="text-slate-500 mt-1 flex items-center gap-2">
+                    <i class="fas fa-calendar-alt"></i> Select a period
+                </p>
+            </div>
+            
+            <div class="flex gap-2 bg-white p-1.5 rounded-xl border border-slate-200">
+                <span class="text-sm text-slate-500 px-2 py-1.5"><i class="far fa-clock mr-1"></i>Period:</span>
+                <button class="period-tab px-4 py-1.5 rounded-lg text-sm font-medium active" onclick="setPeriod('FTD',this)">FTD</button>
+                <button class="period-tab px-4 py-1.5 rounded-lg text-sm font-medium" onclick="setPeriod('LMTD',this)">LMTD</button>
+                <button class="period-tab px-4 py-1.5 rounded-lg text-sm font-medium" onclick="setPeriod('MTD',this)">MTD</button>
+                <button class="period-tab px-4 py-1.5 rounded-lg text-sm font-medium" onclick="setPeriod('YTD',this)">YTD</button>
+                <button class="period-tab px-4 py-1.5 rounded-lg text-sm font-medium" onclick="setPeriod('ALL',this)">All Time</button>
+            </div>
+        </div>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar rounded-xl p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-calendar-plus text-blue-500 mr-1"></i>From</label>
+                <input type="date" id="ff" class="input-modern w-full">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-calendar-check text-blue-500 mr-1"></i>To</label>
+                <input type="date" id="ft" class="input-modern w-full">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-network-wired text-purple-500 mr-1"></i>Provider</label>
+                <select id="fp" class="select-modern w-full"><option value="">All Providers</option></select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-check-circle text-green-500 mr-1"></i>Status</label>
+                <select id="fs" class="select-modern w-full"><option value="">All Status</option></select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-users text-orange-500 mr-1"></i>Client</label>
+                <select id="fc" class="select-modern w-full"><option value="">All Clients</option></select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-tag text-pink-500 mr-1"></i>Op Type</label>
+                <select id="fo" class="select-modern w-full"><option value="">All Types</option></select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-gift text-indigo-500 mr-1"></i>Offer Type</label>
+                <select id="fof" class="select-modern w-full">
+                    <option value="">All</option>
+                    <option value="R-Offer">R-Offer</option>
+                    <option value="Non R-Offer">Non R-Offer</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-rupee-sign text-emerald-500 mr-1"></i>Min Amount</label>
+                <input type="number" id="fmn" class="input-modern w-full" placeholder="0">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-rupee-sign text-emerald-500 mr-1"></i>Max Amount</label>
+                <input type="number" id="fmx" class="input-modern w-full" placeholder="∞">
+            </div>
+            <div class="flex items-end gap-2 md:col-span-2 lg:col-span-1">
+                <button class="btn-primary flex-1" onclick="applyF()"><i class="fas fa-play"></i> Apply</button>
+                <button class="btn-secondary" onclick="resetF()"><i class="fas fa-undo-alt"></i></button>
+                <button class="btn-secondary" onclick="expCSV()"><i class="fas fa-file-csv text-green-600"></i></button>
+                <button class="btn-secondary" onclick="expXLSX()"><i class="fas fa-file-excel text-emerald-600"></i></button>
+            </div>
+        </div>
+
+        <!-- KPI CARDS -->
+        <div id="kgrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-5"></div>
+
+        <!-- ROW 1: Timeline + Provider -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-8 chart-card rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                        <h3 class="font-semibold text-slate-800">Volume & Amount Over Time</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="chart-btn px-3 py-1.5 text-sm rounded-lg bg-blue-50 text-blue-600 font-medium active" id="tlD" onclick="setTLG('day',this)">Day</button>
+                        <button class="chart-btn px-3 py-1.5 text-sm rounded-lg text-slate-600 hover:bg-slate-100" id="tlW" onclick="setTLG('week',this)">Week</button>
+                        <button class="chart-btn px-3 py-1.5 text-sm rounded-lg text-slate-600 hover:bg-slate-100" id="tlM" onclick="setTLG('month',this)">Month</button>
+                        <button class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-500 hover:text-blue-500" onclick="openFS('chartTL','Volume & Amount Over Time')">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="h-[280px]">
+                    <canvas id="chartTL"></canvas>
+                </div>
+            </div>
+            
+            <div class="lg:col-span-4 chart-card rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+                        <h3 class="font-semibold text-slate-800">Provider Share</h3>
+                    </div>
+                    <button class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-500 hover:text-blue-500" onclick="openFS('chartProv','Provider Share')">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+                <div class="h-[280px]">
+                    <canvas id="chartProv"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 2: Status + R-Offer + Hourly -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="chart-card rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                        <h3 class="font-semibold text-slate-800">Success vs Failure</h3>
+                    </div>
+                    <button class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-500 hover:text-blue-500" onclick="openFS('chartStat','Success vs Failure')">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+                <div class="h-[240px]">
+                    <canvas id="chartStat"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+                        <h3 class="font-semibold text-slate-800">R-Offer vs Non R-Offer</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="chart-btn px-3 py-1.5 text-sm rounded-lg bg-indigo-50 text-indigo-600 font-medium active" id="ofA" onclick="setOM('amount',this)">Amount</button>
+                        <button class="chart-btn px-3 py-1.5 text-sm rounded-lg text-slate-600 hover:bg-slate-100" id="ofC" onclick="setOM('count',this)">Count</button>
+                        <button class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-500 hover:text-blue-500" onclick="openFS('chartOffer','R-Offer vs Non R-Offer')">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="h-[240px]">
+                    <canvas id="chartOffer"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-teal-500"></span>
+                        <h3 class="font-semibold text-slate-800">Hourly Pattern</h3>
+                    </div>
+                    <button class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-500 hover:text-blue-500" onclick="openFS('chartHour','Hourly Pattern')">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+                <div class="h-[240px]">
+                    <canvas id="chartHour"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 3: Party-wise Amount + Count -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="chart-card rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-pink-500"></span>
+                        <h3 class="font-semibold text-slate-800">Party-wise: Total Amount</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="chart-btn px-3 py-1.5 text-sm rounded-lg bg-pink-50 text-pink-600 font-medium active" id="pa10" onclick="setPAL(10,this)">Top 10</button>
+                        <button class="chart-btn px-3 py-1.5 text-sm rounded-lg text-slate-600 hover:bg-slate-100" id="pa15" onclick="setPAL(15,this)">Top 15</button>
+                        <button class="chart-btn px-3 py-1.5 text-sm rounded-lg text-slate-600 hover:bg-slate-100" id="paAll" onclick="setPAL(999,this)">All</button>
+                        <button class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-500 hover:text-blue-500" onclick="openFS('chartPAmt','Party-wise Total Amount')">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="h-[260px]">
+                    <canvas id="chartPAmt"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-purple-500"></span>
+                        <h3 class="font-semibold text-slate-800">Party-wise: Transaction Count</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="chart-btn px-3 py-1.5 text-sm rounded-lg bg-purple-50 text-purple-600 font-medium active" id="pc10" onclick="setPCL(10,this)">Top 10</button>
+                        <button class="chart-btn px-3 py-1.5 text-sm rounded-lg text-slate-600 hover:bg-slate-100" id="pc15" onclick="setPCL(15,this)">Top 15</button>
+                        <button class="chart-btn px-3 py-1.5 text-sm rounded-lg text-slate-600 hover:bg-slate-100" id="pcAll" onclick="setPCL(999,this)">All</button>
+                        <button class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-500 hover:text-blue-500" onclick="openFS('chartPCnt','Party-wise Count')">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="h-[260px]">
+                    <canvas id="chartPCnt"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 4: Party R-Offer + Dist + Profit -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-1 chart-card rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-violet-500"></span>
+                        <h3 class="font-semibold text-slate-800">Party R-Offer Split</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="chart-btn px-2 py-1 text-xs rounded-lg bg-violet-50 text-violet-600 font-medium active" id="poA" onclick="setPOM('amount',this)">₹</button>
+                        <button class="chart-btn px-2 py-1 text-xs rounded-lg text-slate-600 hover:bg-slate-100" id="poC" onclick="setPOM('count',this)">#</button>
+                        <button class="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-500 hover:text-blue-500" onclick="openFS('chartPOff','Party R-Offer Split')">
+                            <i class="fas fa-expand text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="h-[260px]">
+                    <canvas id="chartPOff"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                        <h3 class="font-semibold text-slate-800">Amount Distribution</h3>
+                    </div>
+                    <button class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-500 hover:text-blue-500" onclick="openFS('chartDist','Amount Distribution')">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+                <div class="h-[260px]">
+                    <canvas id="chartDist"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+                        <h3 class="font-semibold text-slate-800">Profit by Provider</h3>
+                    </div>
+                    <button class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-500 hover:text-blue-500" onclick="openFS('chartProf','Profit by Provider')">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+                <div class="h-[260px]">
+                    <canvas id="chartProf"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 5: R-Offer Trend -->
+        <div class="chart-card rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                    <h3 class="font-semibold text-slate-800">R-Offer vs Non R-Offer — Daily Trend</h3>
+                </div>
+                <button class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:border-blue-500 hover:text-blue-500" onclick="openFS('chartOTrend','R-Offer Daily Trend')">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+            <div class="h-[220px]">
+                <canvas id="chartOTrend"></canvas>
+            </div>
+        </div>
+
+        <!-- TABLE -->
+        <div class="chart-card rounded-xl p-5">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-slate-500"></span>
+                    <h3 class="font-semibold text-slate-800">Transaction Details</h3>
+                </div>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        <input id="tsrch" type="text" class="input-modern pl-9 w-[200px] md:w-[250px]" placeholder="Search transactions..." oninput="renderTbl(1)">
+                    </div>
+                    <select id="tps" class="select-modern" onchange="renderTbl(1)">
+                        <option value="10">10 rows</option>
+                        <option value="25" selected>25 rows</option>
+                        <option value="50">50 rows</option>
+                        <option value="100">100 rows</option>
+                    </select>
+                    <span id="tcnt" class="text-sm text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg">
+                        <i class="fas fa-list mr-1"></i> <span></span>
+                    </span>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table>
+                    <thead id="th"></thead>
+                    <tbody id="tb"></tbody>
+                </table>
+            </div>
+            
+            <div id="pgn" class="flex items-center justify-end gap-2 mt-4"></div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 px-6 py-4 mt-auto">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-chart-pie text-blue-500"></i>
+                <span class="font-bold gradient-text">Recharge</span>
+            </div>
+            <div class="flex gap-6 text-sm text-slate-600">
+                <span><i class="fas fa-database mr-1"></i> Total: <span id="ftot" class="font-mono font-semibold">0</span></span>
+                <span><i class="fas fa-filter mr-1"></i> Filtered: <span id="ffil" class="font-mono font-semibold">0</span></span>
+                <span><i class="fas fa-calendar-alt mr-1"></i> <span id="frange">—</span></span>
+                <span><i class="far fa-clock mr-1"></i> <span id="fupd">—</span></span>
+            </div>
+            <div class="text-sm text-slate-500">
+                <i class="far fa-copyright mr-1"></i> This Web Dashboard Generate By Sunil Kumar Kashyap
+            </div>
+        </div>
+    </footer>
+</div>
+
+<script>
+/* STATE - All original logic preserved */
+let raw=[],fil=[],charts={},period='FTD',user=null;
+let tlg='day',om='amount',pal=10,pcl=10,pom='amount';
+let tsCol='',tsDir=1,fsChart=null;
+const USERS={admin:'admin123',demo:'demo123'};
+let SAMPLE=null;
+
+/* SAMPLE DATA - Original */
+function mkSample(){
+  const P=['JioRecharge','Airtel','Vodafone'],S=['SUCCESS','SUCCESS','SUCCESS','SUCCESS','FAILURE'];
+  const O=['Prepaid','Postpaid','DTH','Data'],A=[19,49,99,149,199,249,299,399,499,599,699,799,899];
+  const C=Array.from({length:12},(_,i)=>`Party-${i+1}`);
+  const rows=[]; const now=new Date();
+  for(let d=364;d>=0;d--){
+    const date=new Date(now); date.setDate(date.getDate()-d);
+    const n=Math.floor(Math.random()*15)+3;
+    for(let i=0;i<n;i++){
+      const amt=A[Math.floor(Math.random()*A.length)];
+      const prov=P[Math.floor(Math.random()*P.length)];
+      const cli=C[Math.floor(Math.random()*C.length)];
+      const stat=S[Math.floor(Math.random()*S.length)];
+      const cp=+(amt*(0.004+Math.random()*.04)).toFixed(3);
+      const ap=+(cp*(Math.random()<.3?-1:.1)).toFixed(4);
+      const h=new Date(date); h.setHours(Math.floor(Math.random()*24),Math.floor(Math.random()*60));
+      rows.push({Date:h,OrderID:9999900000000000+Math.floor(Math.random()*9999999),
+        ClientID:cli,Provider:prov,OpType:O[Math.floor(Math.random()*O.length)],
+        Amount:amt,Debit_Amount:+(amt-cp).toFixed(3),Client_Profit:cp,Admin_Profit:ap,
+        Client_Balance:+(200000+Math.random()*800000).toFixed(3),Status:stat,
+        Trans:'TXN'+Math.random().toString(36).slice(2,10).toUpperCase(),
+        API:['JRI','M_ROBOT_1','RECH_EXCH','M_ROBOT_State_1'][Math.floor(Math.random()*4)],
+        Type:Math.random()>.35?'R-Offer':'Non R-Offer'});
+    }
+  }
+  return rows;
+}
+
+/* AUTH - Original */
+function doLogin(){
+  const u=document.getElementById('lu').value.trim(),p=document.getElementById('lp').value;
+  if(USERS[u]&&USERS[u]===p) loginOK(u);
+  else document.getElementById('lerr').style.display='block';
+}
+function demoLogin(){loginOK('admin');}
+function loginOK(u){
+  user=u;
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('uname').textContent=u[0].toUpperCase()+u.slice(1);
+  document.getElementById('uinit').textContent=u[0].toUpperCase();
+  if(!SAMPLE) SAMPLE=mkSample();
+  raw=[...SAMPLE]; fil=[...raw];
+  document.getElementById('tfile').querySelector('span').textContent='Sample Data • 1 Year';
+  document.getElementById('tfile').classList.remove('hidden');
+  initDash();
+}
+document.addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
+function doLogout(){
+  user=null; raw=[]; fil=[];
+  document.getElementById('loginPage').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('lu').value=''; document.getElementById('lp').value='';
+  document.getElementById('lerr').style.display='none';
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('uploadZone').style.display='flex';
+  killCharts();
+}
+
+/* FILE - Original */
+function handleFile(inp){
+  const file=inp.files[0]; if(!file)return;
+  showLoad(true); 
+  document.getElementById('tfile').querySelector('span').textContent=file.name;
+  document.getElementById('tfile').classList.remove('hidden');
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      let data;
+      if(file.name.endsWith('.csv')) data=parseCSV(e.target.result);
+      else{
+        const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        data=XLSX.utils.sheet_to_json(ws,{raw:false,defval:''});
+        data=data.map(r=>({...r,
+          Date:r.Date?new Date(r.Date):new Date(),
+          Amount:parseFloat(r.Amount)||0,Debit_Amount:parseFloat(r.Debit_Amount)||0,
+          Client_Profit:parseFloat(r.Client_Profit)||0,Admin_Profit:parseFloat(r.Admin_Profit)||0,
+          Client_Balance:parseFloat(r.Client_Balance)||0,
+          Type:r['R-Offer']!=null?(String(r['R-Offer']).trim()==='123'||String(r['R-Offer']).toLowerCase().includes('offer')?'R-Offer':'Non R-Offer'):(r.Type||'Non R-Offer')}));
+      }
+      raw=data; fil=[...data]; initDash(); toast('✅ Loaded: '+file.name+' ('+data.length+' rows)');
+    }catch(err){toast('❌ '+err.message);}
+    showLoad(false);
+  };
+  if(file.name.endsWith('.csv')) rd.readAsText(file); else rd.readAsBinaryString(file);
+}
+function loadSample(){if(!SAMPLE)SAMPLE=mkSample();raw=[...SAMPLE];fil=[...raw];document.getElementById('tfile').querySelector('span').textContent='Sample Data • 1 Year';initDash();toast('✅ Sample data loaded');}
+const dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('border-blue-400','shadow-lg');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('border-blue-400','shadow-lg'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('border-blue-400','shadow-lg');if(e.dataTransfer.files.length)handleFile({files:e.dataTransfer.files});});
+
+/* INIT - Original */
+function initDash(){
+  document.getElementById('uploadZone').style.display='none';
+  const d=document.getElementById('dashboard');
+  d.style.display='flex'; d.style.flexDirection='column'; d.style.gap='16px';
+  populateF();
+  document.querySelectorAll('.period-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  setPeriod('FTD',document.querySelector('.period-tab'));
+}
+function fmtD(d){return d.toISOString().split('T')[0];}
+function populateF(){
+  const fill=(id,vals)=>{const s=document.getElementById(id);s.innerHTML='<option value="">All Providers</option>'+[...new Set(vals)].filter(Boolean).sort().map(v=>`<option value="${v}">${v}</option>`).join('');};
+  fill('fp',raw.map(r=>r.Provider)); fill('fs',raw.map(r=>r.Status));
+  fill('fc',raw.map(r=>r.ClientID)); fill('fo',raw.map(r=>r.OpType));
+  const dates=raw.map(r=>r.Date).filter(d=>d instanceof Date&&!isNaN(d)).sort((a,b)=>a-b);
+  if(dates.length){document.getElementById('ff').value=fmtD(dates[0]);document.getElementById('ft').value=fmtD(dates[dates.length-1]);}
+}
+
+/* PERIOD - Original */
+function setPeriod(p,btn){
+  period=p;
+  document.querySelectorAll('.period-tab').forEach(t=>t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const allD=raw.map(r=>r.Date).filter(d=>d instanceof Date&&!isNaN(d)).sort((a,b)=>a-b);
+  if(!allD.length){fil=[];renderAll();return;}
+  const last=new Date(allD[allD.length-1]),first=new Date(allD[0]);
+  let from,to=new Date(last); to.setHours(23,59,59,999);
+  switch(p){
+    case'FTD':from=new Date(last);from.setHours(0,0,0,0);break;
+    case'LMTD':{const lm=new Date(last);lm.setMonth(lm.getMonth()-1);from=new Date(lm.getFullYear(),lm.getMonth(),1);to=new Date(lm.getFullYear(),lm.getMonth(),last.getDate(),23,59,59,999);break;}
+    case'MTD':from=new Date(last.getFullYear(),last.getMonth(),1);break;
+    case'YTD':from=new Date(last.getFullYear(),0,1);break;
+    default:from=new Date(first);from.setHours(0,0,0,0);
+  }
+  fil=raw.filter(r=>{const d=r.Date;return d instanceof Date&&!isNaN(d)&&d>=from&&d<=to;});
+  document.getElementById('drange').innerHTML=`<i class="fas fa-calendar-alt"></i> ${p}: ${fmtD(from)} → ${fmtD(to)}`;
+  document.getElementById('rbadge').innerHTML=`<i class="fas fa-database mr-1"></i> ${fil.length} records`;
+  updFooter(); renderAll();
+}
+
+/* FILTER - Original */
+function applyF(){
+  const from=document.getElementById('ff').value,to=document.getElementById('ft').value;
+  const prov=document.getElementById('fp').value,stat=document.getElementById('fs').value;
+  const cli=document.getElementById('fc').value,opt=document.getElementById('fo').value;
+  const offer=document.getElementById('fof').value;
+  const mn=parseFloat(document.getElementById('fmn').value)||0;
+  const mx=parseFloat(document.getElementById('fmx').value)||Infinity;
+  fil=raw.filter(r=>{
+    const d=r.Date;
+    if(from&&d<new Date(from))return false;
+    if(to&&d>new Date(to+'T23:59:59'))return false;
+    if(prov&&r.Provider!==prov)return false;
+    if(stat&&r.Status!==stat)return false;
+    if(cli&&r.ClientID!==cli)return false;
+    if(opt&&r.OpType!==opt)return false;
+    if(offer&&r.Type!==offer)return false;
+    if(r.Amount<mn||r.Amount>mx)return false;
+    return true;
+  });
+  document.getElementById('drange').innerHTML=`<i class="fas fa-filter"></i> Filtered: ${fil.length} records`;
+  document.getElementById('rbadge').innerHTML=`<i class="fas fa-database mr-1"></i> ${fil.length} records`;
+  document.querySelectorAll('.period-tab').forEach(t=>t.classList.remove('active'));
+  updFooter(); renderAll();
+  toast('🔍 '+fil.length+' records match');
+}
+function resetF(){
+  ['fp','fs','fc','fo','fof'].forEach(id=>document.getElementById(id).value='');
+  ['fmn','fmx'].forEach(id=>document.getElementById(id).value='');
+  populateF();
+  document.querySelectorAll('.period-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  setPeriod('FTD',document.querySelector('.period-tab'));
+  toast('↺ Filters reset');
+}
+
+/* KPIs - Modified to show actual amounts without abbreviations */
+function calcK(data){
+  const tot=data.length,suc=data.filter(r=>r.Status==='SUCCESS').length;
+  const amt=data.reduce((s,r)=>s+r.Amount,0);
+  const prof=data.reduce((s,r)=>s+r.Client_Profit,0);
+  const ro=data.filter(r=>r.Type==='R-Offer');
+  const nro=data.filter(r=>r.Type!=='R-Offer');
+  return{tot,suc,fail:tot-suc,amt,prof,avg:tot?amt/tot:0,
+    sr:tot?suc/tot*100:0,
+    roAmt:ro.reduce((s,r)=>s+r.Amount,0),roCnt:ro.length,
+    nroAmt:nro.reduce((s,r)=>s+r.Amount,0),nroCnt:nro.length,
+    provs:[...new Set(data.map(r=>r.Provider))],clients:[...new Set(data.map(r=>r.ClientID))]};
+}
+
+function renderKPIs(){
+  const k=calcK(fil);
+  const pBreak={};
+  fil.forEach(r=>{if(!pBreak[r.Provider])pBreak[r.Provider]={amt:0,cnt:0};pBreak[r.Provider].amt+=r.Amount;pBreak[r.Provider].cnt++;});
+  const cBreak={};
+  fil.forEach(r=>{if(!cBreak[r.ClientID])cBreak[r.ClientID]=0;cBreak[r.ClientID]+=r.Amount;});
+  const topC=Object.entries(cBreak).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  
+  const cards=[
+    {lbl:'Total Transactions',val:k.tot.toLocaleString(),color:'blue',icon:'fa-exchange-alt',
+     pop:[{k:'Success',v:k.suc.toLocaleString()},{k:'Failure',v:k.fail.toLocaleString()},{k:'Rate',v:k.sr.toFixed(1)+'%'},{k:'R-Offer',v:k.roCnt},{k:'Non R-Offer',v:k.nroCnt}]},
+     
+    {lbl:'Total Amount (₹)',val:'₹ '+k.amt.toLocaleString('en-IN',{maximumFractionDigits:2}),color:'emerald',icon:'fa-rupee-sign',
+     pop:[...Object.entries(pBreak).map(([p,v])=>({k:p,v:'₹ '+v.amt.toLocaleString('en-IN',{maximumFractionDigits:2})})),{k:'R-Offer',v:'₹ '+k.roAmt.toLocaleString('en-IN',{maximumFractionDigits:2})},{k:'Non R-Offer',v:'₹ '+k.nroAmt.toLocaleString('en-IN',{maximumFractionDigits:2})}]},
+     
+    {lbl:'Client Profit (₹)',val:'₹ '+k.prof.toLocaleString('en-IN',{maximumFractionDigits:2}),color:'amber',icon:'fa-chart-line',
+     pop:Object.entries(pBreak).map(([p])=>({k:p+' Profit',v:'₹ '+fil.filter(r=>r.Provider===p).reduce((s,r)=>s+r.Client_Profit,0).toLocaleString('en-IN',{maximumFractionDigits:2})}))},
+     
+    {lbl:'Success Rate',val:k.sr.toFixed(1)+'%',color:k.sr>85?'emerald':'orange',icon:'fa-percent',
+     pop:[{k:'Success',v:k.suc},{k:'Failure',v:k.fail},{k:'Rate',v:k.sr.toFixed(2)+'%'},...Object.entries(pBreak).map(([p])=>({k:p+' rate',v:(fil.filter(r=>r.Provider===p&&r.Status==='SUCCESS').length/Math.max(fil.filter(r=>r.Provider===p).length,1)*100).toFixed(1)+'%'}))]},
+     
+    {lbl:'R-Offer Amount',val:'₹ '+k.roAmt.toLocaleString('en-IN',{maximumFractionDigits:2}),color:'indigo',icon:'fa-star',
+     pop:[{k:'Count',v:k.roCnt},{k:'Amount',v:'₹ '+k.roAmt.toLocaleString('en-IN',{maximumFractionDigits:2})},{k:'Share %',v:k.amt?(k.roAmt/k.amt*100).toFixed(1)+'%':'0%'},{k:'Avg',v:k.roCnt?'₹ '+(k.roAmt/k.roCnt).toFixed(2):'—'}]},
+     
+    {lbl:'Non R-Offer Amount',val:'₹ '+k.nroAmt.toLocaleString('en-IN',{maximumFractionDigits:2}),color:'yellow',icon:'fa-circle',
+     pop:[{k:'Count',v:k.nroCnt},{k:'Amount',v:'₹ '+k.nroAmt.toLocaleString('en-IN',{maximumFractionDigits:2})},{k:'Share %',v:k.amt?(k.nroAmt/k.amt*100).toFixed(1)+'%':'0%'},{k:'Avg',v:k.nroCnt?'₹ '+(k.nroAmt/k.nroCnt).toFixed(2):'—'}]},
+     
+    {lbl:'Active Clients',val:k.clients.length,color:'purple',icon:'fa-users',
+     pop:topC.map(([c,a])=>({k:c,v:'₹ '+a.toLocaleString('en-IN',{maximumFractionDigits:2})}))},
+     
+    {lbl:'Avg Transaction',val:'₹ '+k.avg.toLocaleString('en-IN',{maximumFractionDigits:2}),color:'teal',icon:'fa-calculator',
+     pop:[{k:'Min',v:'₹ '+(fil.length?Math.min(...fil.map(r=>r.Amount)).toLocaleString('en-IN'):0)},{k:'Max',v:'₹ '+(fil.length?Math.max(...fil.map(r=>r.Amount)).toLocaleString('en-IN'):0)},{k:'Total',v:'₹ '+k.amt.toLocaleString('en-IN',{maximumFractionDigits:2})},{k:'Count',v:k.tot}]}
+  ];
+  
+  document.getElementById('kgrid').innerHTML=cards.map(c=>`
+    <div class="kpi-card relative rounded-xl p-5">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-sm text-slate-500 mb-1 flex items-center gap-1">
+            <i class="fas ${c.icon} text-${c.color}-500"></i> ${c.lbl}
+          </p>
+          <p class="text-2xl font-bold text-slate-800">${c.val}</p>
+        </div>
+        <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-${c.color}-100 text-${c.color}-700">
+          ${c.pop.length} details
+        </span>
+      </div>
+      
+      <div class="kpi-popup">
+        ${c.pop.map(r=>`<div class="flex justify-between py-1.5 border-b border-slate-100 last:border-0"><span class="text-slate-500">${r.k}</span><span class="font-mono font-medium text-slate-800">${r.v}</span></div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+/* CHART UTILS - Original but with light theme colors */
+const CG='rgba(203, 213, 225, 0.3)';
+const CT='#475569';
+const PC=['rgba(59, 130, 246, 0.7)','rgba(249, 115, 22, 0.7)','rgba(16, 185, 129, 0.7)','rgba(139, 92, 246, 0.7)','rgba(236, 72, 153, 0.7)','rgba(245, 158, 11, 0.7)','rgba(20, 184, 166, 0.7)','rgba(168, 85, 247, 0.7)','rgba(239, 68, 68, 0.7)','rgba(34, 197, 94, 0.7)','rgba(234, 179, 8, 0.7)','rgba(99, 102, 241, 0.7)'];
+const PCB=PC.map(c=>c.replace('0.7)','0.9)'));
+function bOpts(){return{responsive:true,maintainAspectRatio:false,animation:{duration:550,easing:'easeInOutQuart'},plugins:{legend:{labels:{color:CT,font:{size:11},padding:14}},tooltip:{backgroundColor:'white',titleColor:'#1e293b',bodyColor:'#334155',borderColor:'#e2e8f0',borderWidth:1,padding:11,cornerRadius:9}}};}
+function bScales(){return{x:{grid:{color:CG},ticks:{color:CT,font:{size:10},maxRotation:45,maxTicksLimit:20}},y:{grid:{color:CG},ticks:{color:CT,font:{size:10}}}};}
+function killCharts(){Object.values(charts).forEach(c=>c&&c.destroy&&c.destroy());charts={};}
+function mkC(id,cfg){if(charts[id])charts[id].destroy();const el=document.getElementById(id);if(!el)return null;const ch=new Chart(el.getContext('2d'),cfg);charts[id]=ch;return ch;}
+
+/* RENDER CHARTS - Original */
+function renderCharts(){rTL();rProv();rStat();rOffer();rHour();rPAmt();rPCnt();rPOff();rDist();rProf();rOTrend();}
+
+function setTLG(g,btn){
+  tlg=g;
+  document.querySelectorAll('#tlD, #tlW, #tlM').forEach(b=>{
+    b.classList.remove('bg-blue-50','text-blue-600','active');
+    b.classList.add('text-slate-600');
+  });
+  btn.classList.add('bg-blue-50','text-blue-600','active');
+  rTL();
+}
+
+function setOM(m,btn){
+  om=m;
+  document.querySelectorAll('#ofA, #ofC').forEach(b=>{
+    b.classList.remove('bg-indigo-50','text-indigo-600','active');
+    b.classList.add('text-slate-600');
+  });
+  btn.classList.add('bg-indigo-50','text-indigo-600','active');
+  rOffer();
+}
+
+function setPAL(n,btn){
+  pal=n;
+  document.querySelectorAll('#pa10, #pa15, #paAll').forEach(b=>{
+    b.classList.remove('bg-pink-50','text-pink-600','active');
+    b.classList.add('text-slate-600');
+  });
+  btn.classList.add('bg-pink-50','text-pink-600','active');
+  rPAmt();
+}
+
+function setPCL(n,btn){
+  pcl=n;
+  document.querySelectorAll('#pc10, #pc15, #pcAll').forEach(b=>{
+    b.classList.remove('bg-purple-50','text-purple-600','active');
+    b.classList.add('text-slate-600');
+  });
+  btn.classList.add('bg-purple-50','text-purple-600','active');
+  rPCnt();
+}
+
+function setPOM(m,btn){
+  pom=m;
+  document.querySelectorAll('#poA, #poC').forEach(b=>{
+    b.classList.remove('bg-violet-50','text-violet-600','active');
+    b.classList.add('text-slate-600');
+  });
+  btn.classList.add('bg-violet-50','text-violet-600','active');
+  rPOff();
+}
+
+function rTL(){
+  const g={};
+  fil.forEach(r=>{if(!(r.Date instanceof Date))return;let k;
+    if(tlg==='day')k=fmtD(r.Date);
+    else if(tlg==='week'){const d=new Date(r.Date);d.setDate(d.getDate()-d.getDay());k=fmtD(d);}
+    else k=r.Date.getFullYear()+'-'+String(r.Date.getMonth()+1).padStart(2,'0');
+    if(!g[k])g[k]={c:0,a:0};g[k].c++;g[k].a+=r.Amount;
+  });
+  const lbs=Object.keys(g).sort();
+  mkC('chartTL',{type:'bar',data:{labels:lbs,datasets:[
+    {label:'Transactions',data:lbs.map(k=>g[k].c),backgroundColor:'rgba(59, 130, 246, 0.3)',borderColor:'#3b82f6',borderWidth:1,yAxisID:'y',order:2},
+    {label:'Amount (₹)',data:lbs.map(k=>+g[k].a.toFixed(0)),type:'line',borderColor:'#10b981',backgroundColor:'rgba(16, 185, 129, 0.07)',borderWidth:2,pointRadius:lbs.length>60?0:3,fill:true,tension:.4,yAxisID:'y1',order:1}
+  ]},options:{...bOpts(),interaction:{mode:'index',intersect:false},scales:{
+    x:{grid:{color:CG},ticks:{color:CT,font:{size:10},maxRotation:45,maxTicksLimit:20}},
+    y:{grid:{color:CG},ticks:{color:CT,font:{size:10}},title:{display:true,text:'Count',color:CT}},
+    y1:{position:'right',grid:{display:false},ticks:{color:'#10b981',font:{size:10},callback:v=>'₹'+v},title:{display:true,text:'Amount',color:'#10b981'}}
+  }}});
+}
+
+function rProv(){
+  const g={};fil.forEach(r=>{if(!g[r.Provider])g[r.Provider]=0;g[r.Provider]+=r.Amount;});
+  mkC('chartProv',{type:'doughnut',data:{labels:Object.keys(g),datasets:[{data:Object.values(g).map(v=>+v.toFixed(0)),backgroundColor:PC,borderColor:'white',borderWidth:3,hoverOffset:10}]},
+    options:{...bOpts(),cutout:'62%',plugins:{legend:{position:'bottom',labels:{color:CT,font:{size:11},padding:10}},tooltip:{...bOpts().plugins.tooltip,callbacks:{label:c=>`${c.label}: ₹${c.parsed.toLocaleString('en-IN')}`}}}}});
+}
+
+function rStat(){
+  const g={};fil.forEach(r=>{if(!g[r.Status])g[r.Status]=0;g[r.Status]++;});
+  mkC('chartStat',{type:'pie',data:{labels:Object.keys(g),datasets:[{data:Object.values(g),backgroundColor:['rgba(16, 185, 129, 0.7)','rgba(239, 68, 68, 0.7)'],borderColor:'white',borderWidth:3,hoverOffset:8}]},
+    options:{...bOpts(),plugins:{legend:{position:'bottom',labels:{color:CT,font:{size:11}}},tooltip:{...bOpts().plugins.tooltip}}}});
+}
+
+function rOffer(){
+  const g={'R-Offer':{a:0,c:0},'Non R-Offer':{a:0,c:0}};
+  fil.forEach(r=>{const k=r.Type==='R-Offer'?'R-Offer':'Non R-Offer';g[k].a+=r.Amount;g[k].c++;});
+  const vals=om==='amount'?[+g['R-Offer'].a.toFixed(0),+g['Non R-Offer'].a.toFixed(0)]:[g['R-Offer'].c,g['Non R-Offer'].c];
+  mkC('chartOffer',{type:'doughnut',data:{labels:['R-Offer','Non R-Offer'],datasets:[{data:vals,backgroundColor:['rgba(59, 130, 246, 0.7)','rgba(245, 158, 11, 0.7)'],borderColor:'white',borderWidth:3,hoverOffset:10}]},
+    options:{...bOpts(),cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:CT,font:{size:11}}},tooltip:{...bOpts().plugins.tooltip,callbacks:{label:c=>om==='amount'?`${c.label}: ₹${c.parsed.toLocaleString('en-IN')}`:`${c.label}: ${c.parsed} txns`}}}}});
+}
+
+function rHour(){
+  const h=Array(24).fill(0);fil.forEach(r=>{if(r.Date instanceof Date)h[r.Date.getHours()]++;});
+  mkC('chartHour',{type:'line',data:{labels:Array.from({length:24},(_,i)=>`${i}:00`),datasets:[{label:'Txns',data:h,borderColor:'#14b8a6',backgroundColor:'rgba(20, 184, 166, 0.1)',borderWidth:2,pointRadius:4,pointBackgroundColor:'#14b8a6',tension:.4,fill:true}]},
+    options:{...bOpts(),scales:bScales(),plugins:{legend:{display:false},tooltip:{...bOpts().plugins.tooltip}}}});
+}
+
+function rPAmt(){
+  const g={};fil.forEach(r=>{if(!g[r.ClientID])g[r.ClientID]=0;g[r.ClientID]+=r.Amount;});
+  let s=Object.entries(g).sort((a,b)=>b[1]-a[1]);if(pal!==999)s=s.slice(0,pal);
+  mkC('chartPAmt',{type:'bar',data:{labels:s.map(x=>x[0]),datasets:[{label:'Amount',data:s.map(x=>+x[1].toFixed(0)),backgroundColor:PC.slice(0,Math.min(s.length,PC.length)),borderColor:PCB.slice(0,Math.min(s.length,PCB.length)),borderWidth:1,borderRadius:3}]},
+    options:{...bOpts(),indexAxis:'y',scales:{x:{grid:{color:CG},ticks:{color:CT,font:{size:10},callback:v=>'₹'+v.toLocaleString('en-IN')}},y:{grid:{display:false},ticks:{color:CT,font:{size:11}}}},plugins:{legend:{display:false},tooltip:{...bOpts().plugins.tooltip,callbacks:{label:c=>`₹${c.parsed.x.toLocaleString('en-IN')}`}}}}});
+}
+
+function rPCnt(){
+  const g={};fil.forEach(r=>{if(!g[r.ClientID])g[r.ClientID]=0;g[r.ClientID]++;});
+  let s=Object.entries(g).sort((a,b)=>b[1]-a[1]);if(pcl!==999)s=s.slice(0,pcl);
+  const cols=[...PC].reverse();
+  mkC('chartPCnt',{type:'bar',data:{labels:s.map(x=>x[0]),datasets:[{label:'Count',data:s.map(x=>x[1]),backgroundColor:cols.slice(0,Math.min(s.length,cols.length)),borderWidth:1,borderRadius:3}]},
+    options:{...bOpts(),indexAxis:'y',scales:{x:{grid:{color:CG},ticks:{color:CT,font:{size:10}}},y:{grid:{display:false},ticks:{color:CT,font:{size:11}}}},plugins:{legend:{display:false},tooltip:{...bOpts().plugins.tooltip}}}});
+}
+
+function rPOff(){
+  const g={};
+  fil.forEach(r=>{if(!g[r.ClientID])g[r.ClientID]={'R-Offer':0,'Non R-Offer':0};const k=r.Type==='R-Offer'?'R-Offer':'Non R-Offer';g[r.ClientID][k]+=pom==='amount'?r.Amount:1;});
+  const s=Object.entries(g).map(([k,v])=>({k,t:(v['R-Offer']||0)+(v['Non R-Offer']||0),ro:v['R-Offer']||0,nro:v['Non R-Offer']||0})).sort((a,b)=>b.t-a.t).slice(0,12);
+  mkC('chartPOff',{type:'bar',data:{labels:s.map(x=>x.k),datasets:[
+    {label:'R-Offer',data:s.map(x=>+x.ro.toFixed(0)),backgroundColor:'rgba(59, 130, 246, 0.6)',borderColor:'#3b82f6',borderWidth:1,borderRadius:3},
+    {label:'Non R-Offer',data:s.map(x=>+x.nro.toFixed(0)),backgroundColor:'rgba(245, 158, 11, 0.6)',borderColor:'#f59e0b',borderWidth:1,borderRadius:3}
+  ]},options:{...bOpts(),scales:{x:{grid:{color:CG},ticks:{color:CT,font:{size:10},maxRotation:45}},y:{grid:{color:CG},ticks:{color:CT,font:{size:10},callback:v=>pom==='amount'?'₹'+v.toLocaleString('en-IN'):v}}},plugins:{legend:{labels:{color:CT,font:{size:11}}},tooltip:{...bOpts().plugins.tooltip,callbacks:{label:c=>pom==='amount'?`${c.dataset.label}: ₹${c.parsed.y.toLocaleString('en-IN')}`:`${c.dataset.label}: ${c.parsed.y} txns`}}}}});
+}
+
+function rDist(){
+  const B=[0,50,100,200,300,400,500,700,1000];
+  const lbs=B.slice(0,-1).map((v,i)=>`₹${v}–${B[i+1]}`);
+  const cnt=B.slice(0,-1).map((v,i)=>fil.filter(r=>r.Amount>=v&&r.Amount<B[i+1]).length);
+  mkC('chartDist',{type:'bar',data:{labels:lbs,datasets:[{label:'Count',data:cnt,backgroundColor:'rgba(245, 158, 11, 0.5)',borderColor:'#f59e0b',borderWidth:1,borderRadius:4}]},
+    options:{...bOpts(),scales:bScales(),plugins:{legend:{display:false},tooltip:{...bOpts().plugins.tooltip}}}});
+}
+
+function rProf(){
+  const g={};fil.forEach(r=>{if(!g[r.Provider])g[r.Provider]=0;g[r.Provider]+=r.Client_Profit;});
+  const s=Object.entries(g).sort((a,b)=>b[1]-a[1]);
+  mkC('chartProf',{type:'bar',data:{labels:s.map(x=>x[0]),datasets:[{label:'Profit',data:s.map(x=>+x[1].toFixed(2)),backgroundColor:PC,borderColor:PCB,borderWidth:1,borderRadius:4}]},
+    options:{...bOpts(),indexAxis:'y',scales:{x:{grid:{color:CG},ticks:{color:CT,font:{size:10},callback:v=>'₹'+v.toLocaleString('en-IN')}},y:{grid:{display:false},ticks:{color:CT,font:{size:11}}}},plugins:{legend:{display:false},tooltip:{...bOpts().plugins.tooltip,callbacks:{label:c=>`₹${c.parsed.x.toLocaleString('en-IN',{maximumFractionDigits:2})}`}}}}});
+}
+
+function rOTrend(){
+  const g={};
+  fil.forEach(r=>{if(!(r.Date instanceof Date))return;const k=fmtD(r.Date);if(!g[k])g[k]={'R-Offer':0,'Non R-Offer':0};const t=r.Type==='R-Offer'?'R-Offer':'Non R-Offer';g[k][t]++;});
+  const lbs=Object.keys(g).sort();
+  mkC('chartOTrend',{type:'line',data:{labels:lbs,datasets:[
+    {label:'R-Offer',data:lbs.map(k=>g[k]['R-Offer']||0),borderColor:'#3b82f6',backgroundColor:'rgba(59, 130, 246, 0.07)',borderWidth:2,pointRadius:lbs.length>60?0:3,fill:true,tension:.4},
+    {label:'Non R-Offer',data:lbs.map(k=>g[k]['Non R-Offer']||0),borderColor:'#f59e0b',backgroundColor:'rgba(245, 158, 11, 0.06)',borderWidth:2,pointRadius:lbs.length>60?0:3,fill:true,tension:.4}
+  ]},options:{...bOpts(),interaction:{mode:'index',intersect:false},scales:bScales()}});
+}
+
+/* FULLSCREEN */
+let fsId=null;
+function openFS(cid,title){
+  fsId=cid;
+  document.getElementById('fsmTitle').textContent=title;
+  document.getElementById('fsModal').classList.add('flex');
+  document.getElementById('fsModal').classList.remove('hidden');
+  const src=charts[cid]; if(!src)return;
+  if(fsChart)fsChart.destroy();
+  const cfg=JSON.parse(JSON.stringify(src.config));
+  if(cfg.options?.plugins?.legend?.labels)cfg.options.plugins.legend.labels.font={size:14};
+  if(cfg.options?.scales)Object.values(cfg.options.scales).forEach(s=>{if(s.ticks)s.ticks.font={size:13};});
+  cfg.options=cfg.options||{};cfg.options.animation={duration:350};
+  fsChart=new Chart(document.getElementById('fsCanvas').getContext('2d'),cfg);
+}
+function closeFS(){
+  document.getElementById('fsModal').classList.remove('flex');
+  document.getElementById('fsModal').classList.add('hidden');
+  if(fsChart){fsChart.destroy();fsChart=null;}
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeFS();});
+
+/* Chart export */
+function exportChartAsImage() {
+    if (!fsChart) return;
+    const canvas = document.getElementById('fsCanvas');
+    const link = document.createElement('a');
+    link.download = `txnpulse-chart-${new Date().getTime()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    toast('✅ Chart exported as PNG');
+}
+
+/* TABLE - Original */
+const TCOLS=['Date','ClientID','Provider','OpType','Amount','Debit_Amount','Client_Profit','Admin_Profit','Status','Type','Trans','API'];
+function getTRows(){
+  const q=(document.getElementById('tsrch').value||'').toLowerCase();
+  let d=[...fil];
+  if(q)d=d.filter(r=>Object.values(r).some(v=>String(v).toLowerCase().includes(q)));
+  if(tsCol){d.sort((a,b)=>{let av=a[tsCol],bv=b[tsCol];if(av instanceof Date)return tsDir*(av-bv);if(!isNaN(av)&&!isNaN(bv))return tsDir*(parseFloat(av)-parseFloat(bv));return tsDir*String(av).localeCompare(String(bv));});}
+  return d;
+}
+function renderTbl(pg=1){
+  const data=getTRows();
+  const ps=parseInt(document.getElementById('tps').value)||25;
+  const pages=Math.max(1,Math.ceil(data.length/ps));
+  const p=Math.min(Math.max(1,pg),pages);
+  const slice=data.slice((p-1)*ps,p*ps);
+  document.getElementById('tcnt').innerHTML='<i class="fas fa-list mr-1"></i> '+data.length+' records';
+  
+  let thHTML='<tr>';
+  TCOLS.forEach(c=>{
+    const dir=tsCol===c?(tsDir===1?' ↑':' ↓'):'';
+    thHTML+=`<th onclick="tSort('${c}')" class="cursor-pointer hover:text-blue-600">${c}${dir}</th>`;
+  });
+  thHTML+='</tr>';
+  document.getElementById('th').innerHTML=thHTML;
+  
+  let tbHTML='';
+  slice.forEach(r=>{
+    tbHTML+='<tr>';
+    TCOLS.forEach(c=>{
+      let v=r[c];
+      if(c==='Date'&&v instanceof Date)v=v.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      else if(c==='Status'){
+        const cls=v==='SUCCESS'?'status-success':'status-failed';
+        tbHTML+=`<td><span class="${cls}"><i class="fas fa-${v==='SUCCESS'?'check-circle':'times-circle'} mr-1"></i>${v}</span></td>`;
+        return;
+      }
+      else if(c==='Type'){
+        const cls=v==='R-Offer'?'type-offer':'type-nonoffer';
+        tbHTML+=`<td><span class="${cls}"><i class="fas fa-${v==='R-Offer'?'star':'circle'} mr-1"></i>${v||'—'}</span></td>`;
+        return;
+      }
+      else if(['Amount','Debit_Amount','Client_Profit','Admin_Profit'].includes(c)){
+        tbHTML+=`<td class="font-mono">₹ ${parseFloat(v||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>`;
+        return;
+      }
+      else tbHTML+=`<td>${v??'—'}</td>`;
+    });
+    tbHTML+='</tr>';
+  });
+  document.getElementById('tb').innerHTML=tbHTML;
+  
+  // Pagination
+  const maxB=7;
+  let pgs=[];
+  if(pages<=maxB){for(let i=1;i<=pages;i++)pgs.push(i);}
+  else{
+    pgs=[1];
+    if(p>3)pgs.push('…');
+    for(let i=Math.max(2,p-1);i<=Math.min(pages-1,p+1);i++)pgs.push(i);
+    if(p<pages-2)pgs.push('…');
+    pgs.push(pages);
+  }
+  
+  let pgnHTML=`
+    <button class="pagination-btn" onclick="renderTbl(${p-1})" ${p===1?'disabled':''}>
+      <i class="fas fa-chevron-left"></i>
+    </button>
+  `;
+  
+  pgs.forEach(pg=>{
+    if(pg==='…'){
+      pgnHTML+=`<span class="px-2 text-slate-400">…</span>`;
+    } else {
+      pgnHTML+=`<button class="pagination-btn ${pg===p?'active':''}" onclick="renderTbl(${pg})">${pg}</button>`;
+    }
+  });
+  
+  pgnHTML+=`
+    <button class="pagination-btn" onclick="renderTbl(${p+1})" ${p===pages?'disabled':''}>
+      <i class="fas fa-chevron-right"></i>
+    </button>
+  `;
+  
+  document.getElementById('pgn').innerHTML=pgnHTML;
+}
+function tSort(col){if(tsCol===col)tsDir*=-1;else{tsCol=col;tsDir=1;}renderTbl(1);}
+
+/* EXPORT - Original */
+function expCSV(){
+  const d=getTRows();if(!d.length){toast('No data');return;}
+  const cols=Object.keys(d[0]);
+  let csv=cols.join(',')+'\n';
+  d.forEach(r=>{csv+=cols.map(c=>{let v=r[c];if(v instanceof Date)v=v.toLocaleDateString('en-IN');return`"${String(v??'').replace(/"/g,'""')}"`;}).join(',')+'\n';});
+  dl(new Blob([csv],{type:'text/csv'}),'txnpulse_'+new Date().toISOString().slice(0,10)+'.csv');
+  toast('✅ CSV exported ('+d.length+' rows)');
+}
+function expXLSX(){
+  const d=getTRows();if(!d.length){toast('No data');return;}
+  const ws=XLSX.utils.json_to_sheet(d.map(r=>{const o={...r};if(o.Date instanceof Date)o.Date=o.Date.toLocaleDateString('en-IN');return o;}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,'Transactions',ws);
+  XLSX.writeFile(wb,'txnpulse_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('✅ XLSX exported ('+d.length+' rows)');
+}
+function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);}
+
+/* FOOTER - Original */
+function updFooter(){
+  document.getElementById('ftot').textContent=raw.length.toLocaleString();
+  document.getElementById('ffil').textContent=fil.length.toLocaleString();
+  const dates=fil.map(r=>r.Date).filter(d=>d instanceof Date&&!isNaN(d)).sort((a,b)=>a-b);
+  document.getElementById('frange').textContent=dates.length?fmtD(dates[0])+' → '+fmtD(dates[dates.length-1]):'—';
+  document.getElementById('fupd').textContent=new Date().toLocaleTimeString('en-IN');
+}
+
+/* RENDER ALL */
+function renderAll(){renderKPIs();renderCharts();renderTbl(1);}
+
+/* UTILS */
+function showLoad(v){document.getElementById('lov').style.display=v?'flex':'none';}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.innerHTML='<i class="fas fa-info-circle text-blue-500"></i> '+msg;
+  t.classList.remove('translate-y-20','opacity-0');
+  t.classList.add('translate-y-0','opacity-100');
+  clearTimeout(t._t);
+  t._t=setTimeout(()=>{
+    t.classList.add('translate-y-20','opacity-0');
+    t.classList.remove('translate-y-0','opacity-100');
+  },3000);
+}
+function parseCSV(txt){
+  const lines=txt.split('\n');const h=lines[0].split(',').map(v=>v.trim().replace(/"/g,''));
+  return lines.slice(1).filter(l=>l.trim()).map(line=>{const vals=line.split(',');const o={};h.forEach((k,i)=>{o[k]=(vals[i]||'').trim().replace(/"/g,'');});
+    o.Date=o.Date?new Date(o.Date):new Date();['Amount','Debit_Amount','Client_Profit','Admin_Profit','Client_Balance'].forEach(k=>{if(o[k])o[k]=parseFloat(o[k])||0;});return o;});
+}
+</script>
+</body>
+</html>
